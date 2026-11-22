@@ -1,0 +1,123 @@
+# =============================================================================
+# GEZIN – Smartschool, NMBS, Lidl-promoties
+# =============================================================================
+#   calendar.smartschool   Smartschool-schoolkalender (iCal-export via Remote Calendar,
+#                          of de smartschool_ha custom integratie)
+#   sensor.nmbs_trein      NMBS-traject (officieel). Attributen o.a.:
+#                          delay_minutes, departure_minutes, platform_departing, canceled
+#   sensor.lidl_koffie     Lidl Weekly Offers (HACS, FaserF/ha-lidl) – trefwoordfilter-sensor
+#   sensor.lidl_luiers     idem, tweede trefwoord (voeg er zo veel toe als je wil)
+
+input_number:
+  nmbs_vertraging_melding:
+    name: NMBS melding vanaf vertraging
+    unit_of_measurement: min
+    min: 1
+    max: 60
+    step: 1
+    initial: 5
+    icon: mdi:train-car
+
+template:
+  # Wat staat er vandaag op Smartschool (voor het dashboard)
+  - triggers:
+      - trigger: time_pattern
+        minutes: 10
+      - trigger: homeassistant
+        event: start
+    actions:
+      # Enkel ophalen als de kalender bestaat (vermijdt fouten zolang ze niet gekoppeld is)
+      - condition: template
+        value_template: "{{ has_value('calendar.smartschool') }}"
+      - action: calendar.get_events
+        target:
+          entity_id: calendar.smartschool
+        data:
+          start_date_time: "{{ today_at('00:00').isoformat() }}"
+          end_date_time: "{{ (today_at('00:00') + timedelta(days=1)).isoformat() }}"
+        response_variable: school
+    sensor:
+      - name: Smartschool vandaag
+        unique_id: smartschool_vandaag
+        icon: mdi:school
+        state: "{{ (school | default({})).get('calendar.smartschool', {}).get('events', []) | count }}"
+        attributes:
+          items: "{{ (school | default({})).get('calendar.smartschool', {}).get('events', []) | map(attribute='summary') | list }}"
+
+automation:
+  - id: gezin_smartschool_ochtend
+    alias: Gezin – Smartschool overzicht 's ochtends
+    mode: single
+    triggers:
+      - trigger: time
+        at: "06:45:00"
+    conditions:
+      - condition: time
+        weekday: [mon, tue, wed, thu, fri]
+    actions:
+      - action: calendar.get_events
+        target:
+          entity_id: calendar.smartschool
+        data:
+          start_date_time: "{{ today_at('00:00').isoformat() }}"
+          end_date_time: "{{ (today_at('00:00') + timedelta(days=1)).isoformat() }}"
+        response_variable: school
+      - variables:
+          items: "{{ school['calendar.smartschool'].events | map(attribute='summary') | list }}"
+      - condition: template
+        value_template: "{{ items | count > 0 }}"
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🎒 Vandaag op Smartschool"
+          message: "{{ items | join('\n') }}"
+
+  - id: gezin_nmbs_vertraging
+    alias: Gezin – NMBS vertraging of afgeschaft
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: template
+        value_template: >
+          {{ state_attr('sensor.nmbs_trein', 'delay_minutes') | int(0) >=
+             states('input_number.nmbs_vertraging_melding') | int(5)
+             or state_attr('sensor.nmbs_trein', 'canceled') == true }}
+    conditions:
+      - condition: time
+        after: "06:00:00"
+        before: "09:00:00"
+        weekday: [mon, tue, wed, thu, fri]
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🚆 NMBS"
+          message: >
+            {% if state_attr('sensor.nmbs_trein', 'canceled') %}
+              Je trein is afgeschaft!
+            {% else %}
+              Vertraging {{ state_attr('sensor.nmbs_trein', 'delay_minutes') }} min,
+              vertrek {{ state_attr('sensor.nmbs_trein', 'departure') }},
+              spoor {{ state_attr('sensor.nmbs_trein', 'platform_departing') }}.
+            {% endif %}
+      - delay:
+          minutes: 15
+
+  - id: gezin_lidl_promo
+    alias: Gezin – Lidl-promotie op trefwoord
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id:
+          - sensor.lidl_koffie
+          - sensor.lidl_luiers
+    conditions:
+      - condition: template
+        value_template: >
+          {{ trigger.to_state.state | int(0) > 0 and
+             trigger.from_state is not none and
+             trigger.from_state.state | int(0) == 0 }}
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🛒 Lidl-promo"
+          message: >
+            {{ trigger.to_state.name }}: {{ trigger.to_state.state }} aanbieding(en) deze week.

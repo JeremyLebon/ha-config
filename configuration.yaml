@@ -1,0 +1,21 @@
+# Home Assistant – hoofdconfiguratie
+# Alle logica zit in packages/ (één bestand per domein).
+# Na installatie: entiteiten koppelen met tools/koppel_entiteiten.py (zie README).
+
+default_config:
+
+homeassistant:
+  packages: !include_dir_named packages
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+lovelace:
+  dashboards:
+    dashboard-kiosk:
+      mode: yaml
+      title: Kiosk
+      icon: mdi:tablet-dashboard
+      show_in_sidebar: true
+      filename: dashboards/kiosk.yaml

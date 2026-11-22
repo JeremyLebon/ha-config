@@ -1,0 +1,197 @@
+# =============================================================================
+# VERWARMING – Vaillant (myVAILLANT, cloud, HACS) + Austroflamm pelletkachel (Fumis, officieel)
+# =============================================================================
+#   climate.vaillant_zone   myVAILLANT-zone van de leefruimte
+#   climate.pelletkachel    Austroflamm via Fumis (WiRCU-module)
+#
+# 1. Kachel brandt -> setpoint Vaillant omlaag (geen dubbel stoken), daarna herstellen.
+#    Let op: myVAILLANT zet bij een temperatuurwijziging standaard een "quick veto"
+#    (tijdelijke override). Wil je het tijdsprogramma zelf wijzigen, zet dan de optie
+#    in de integratie-instellingen om, of gebruik de myvaillant.set_quick_veto actie
+#    met een duur.
+# 2. Pelletvoorraad schatten op basis van branduren sinds laatste bijvulling.
+
+input_number:
+  vaillant_setpoint_kachel:
+    name: Vaillant setpoint als kachel brandt
+    unit_of_measurement: °C
+    min: 5
+    max: 22
+    step: 0.5
+    initial: 17
+    icon: mdi:thermostat-auto
+  vaillant_setpoint_bewaard:
+    name: Vaillant setpoint bewaard (intern)
+    unit_of_measurement: °C
+    min: 5
+    max: 30
+    step: 0.5
+    icon: mdi:content-save
+  pellets_branduren_per_vulling:
+    name: Branduren per volle tank
+    unit_of_measurement: h
+    min: 5
+    max: 200
+    step: 1
+    initial: 30
+    mode: box
+    icon: mdi:fire
+  pellets_teller_bij_bijvullen:
+    name: Branduurteller bij laatste bijvulling (intern)
+    unit_of_measurement: h
+    min: 0
+    max: 1000000
+    step: 0.01
+    mode: box
+    icon: mdi:counter
+
+input_boolean:
+  vaillant_verlaagd_door_kachel:
+    name: Vaillant verlaagd door kachel (intern)
+    icon: mdi:thermostat-cog
+  kachel_vaillant_koppeling:
+    name: Kachel verlaagt Vaillant automatisch
+    icon: mdi:link-variant
+
+input_button:
+  pellets_bijgevuld:
+    name: Pellets bijgevuld
+    icon: mdi:sack
+
+template:
+  - binary_sensor:
+      - name: Kachel brandt
+        unique_id: kachel_brandt
+        device_class: heat
+        icon: mdi:fireplace
+        state: >
+          {% set actie = state_attr('climate.pelletkachel', 'hvac_action') %}
+          {{ actie == 'heating' or (actie is none and is_state('climate.pelletkachel', 'heat')) }}
+
+  - sensor:
+      - name: Kachel brandt numeriek
+        unique_id: kachel_brandt_numeriek
+        state: "{{ 1 if is_state('binary_sensor.kachel_brandt', 'on') else 0 }}"
+
+      - name: Pellets resterend
+        unique_id: pellets_resterend
+        unit_of_measurement: "%"
+        icon: mdi:sack-percent
+        state: >
+          {% set totaal = states('sensor.kachel_branduren_totaal') | float(0) %}
+          {% set start = states('input_number.pellets_teller_bij_bijvullen') | float(0) %}
+          {% set per_vulling = states('input_number.pellets_branduren_per_vulling') | float(30) %}
+          {{ [100 - (totaal - start) / per_vulling * 100, 0] | max | round(0) }}
+
+sensor:
+  # Cumulatieve branduren (blijft bewaard over herstarts, onafhankelijk van recorder-retentie)
+  - platform: integration
+    name: Kachel branduren totaal
+    unique_id: kachel_branduren_totaal
+    source: sensor.kachel_brandt_numeriek
+    unit_time: h
+    method: left
+    round: 2
+    max_sub_interval:
+      minutes: 5
+
+automation:
+  - id: verwarming_kachel_aan_vaillant_omlaag
+    alias: Verwarming – kachel brandt, Vaillant omlaag
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.kachel_brandt
+        to: "on"
+        for:
+          minutes: 10
+    conditions:
+      - condition: state
+        entity_id: input_boolean.kachel_vaillant_koppeling
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.vaillant_verlaagd_door_kachel
+        state: "off"
+    actions:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.vaillant_setpoint_bewaard
+        data:
+          value: "{{ state_attr('climate.vaillant_zone', 'temperature') | float(20) }}"
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.vaillant_zone
+        data:
+          temperature: "{{ states('input_number.vaillant_setpoint_kachel') | float(17) }}"
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.vaillant_verlaagd_door_kachel
+
+  - id: verwarming_kachel_uit_vaillant_herstellen
+    alias: Verwarming – kachel uit, Vaillant herstellen
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.kachel_brandt
+        to: "off"
+        for:
+          minutes: 30
+      - trigger: state
+        entity_id: input_boolean.kachel_vaillant_koppeling
+        to: "off"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.vaillant_verlaagd_door_kachel
+        state: "on"
+    actions:
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.vaillant_zone
+        data:
+          temperature: "{{ states('input_number.vaillant_setpoint_bewaard') | float(20) }}"
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.vaillant_verlaagd_door_kachel
+
+  - id: verwarming_pellets_bijgevuld
+    alias: Verwarming – pellets bijgevuld registreren
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: input_button.pellets_bijgevuld
+    actions:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.pellets_teller_bij_bijvullen
+        data:
+          value: "{{ states('sensor.kachel_branduren_totaal') | float(0) }}"
+
+  - id: verwarming_pellets_bijna_op
+    alias: Verwarming – melding pellets bijna op
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.pellets_resterend
+        below: 15
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🔥 Pellets bijna op"
+          message: >
+            Nog ongeveer {{ states('sensor.pellets_resterend') }} % in de kachel.
+            Druk na het bijvullen op 'Pellets bijgevuld'.
+
+  - id: verwarming_vaillant_onbereikbaar
+    alias: Verwarming – melding Vaillant onbereikbaar
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: climate.vaillant_zone
+        to: unavailable
+        for:
+          minutes: 30
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "Vaillant onbereikbaar"
+          message: "myVAILLANT geeft al 30 minuten geen data. Controleer sensoNET/internet."

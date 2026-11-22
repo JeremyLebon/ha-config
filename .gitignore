@@ -1,0 +1,16 @@
+# Geheimen en runtime-data van Home Assistant nooit committen
+secrets.yaml
+.storage/
+.cloud/
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.log.*
+home-assistant_v2.db*
+tts/
+deps/
+.HA_VERSION
+custom_components/
+www/community/
+__pycache__/

@@ -1,0 +1,120 @@
+# =============================================================================
+# HUISHOUDEN – wasmachine/droogkast via Shelly Plug, afvalophaling
+# =============================================================================
+#   sensor.wasmachine_vermogen   W (Shelly Plug)
+#   sensor.droogkast_vermogen    W (Shelly Plug)
+#   calendar.afvalophaling       kalender met ophaaldata (Recycle!-integratie of iCal via Remote Calendar)
+#
+# Drempels per toestel even nakijken in de geschiedenis van de vermogenssensor:
+# sommige toestellen blijven na het programma enkele watt trekken (display, anti-kreuk).
+
+input_boolean:
+  wasmachine_draait:
+    name: Wasmachine draait
+    icon: mdi:washing-machine
+  droogkast_draait:
+    name: Droogkast draait
+    icon: mdi:tumble-dryer
+
+automation:
+  - id: huishouden_toestel_klaar
+    alias: Huishouden – wasmachine/droogkast klaar
+    mode: parallel
+    triggers:
+      - trigger: numeric_state
+        entity_id:
+          - sensor.wasmachine_vermogen
+          - sensor.droogkast_vermogen
+        above: 10
+        for:
+          minutes: 2
+        id: start
+      - trigger: numeric_state
+        entity_id:
+          - sensor.wasmachine_vermogen
+          - sensor.droogkast_vermogen
+        below: 3
+        for:
+          minutes: 5
+        id: stop
+    variables:
+      toestel: "{{ 'wasmachine' if 'wasmachine' in trigger.entity_id else 'droogkast' }}"
+      vlag: "input_boolean.{{ toestel }}_draait"
+    actions:
+      - choose:
+          - conditions:
+              - condition: trigger
+                id: start
+            sequence:
+              - action: input_boolean.turn_on
+                target:
+                  entity_id: "{{ vlag }}"
+          - conditions:
+              - condition: trigger
+                id: stop
+              - condition: template
+                value_template: "{{ is_state(vlag, 'on') }}"
+            sequence:
+              - action: input_boolean.turn_off
+                target:
+                  entity_id: "{{ vlag }}"
+              - action: notify.mobile_app_gsm
+                data:
+                  title: "{{ '🧺 Wasmachine' if toestel == 'wasmachine' else '🌀 Droogkast' }} klaar"
+                  message: "Het programma is gedaan."
+
+  - id: huishouden_afval_morgen
+    alias: Huishouden – afval buitenzetten
+    mode: single
+    triggers:
+      - trigger: time
+        at: "19:00:00"
+    actions:
+      - action: calendar.get_events
+        target:
+          entity_id: calendar.afvalophaling
+        data:
+          start_date_time: "{{ (today_at('00:00') + timedelta(days=1)).isoformat() }}"
+          end_date_time: "{{ (today_at('00:00') + timedelta(days=2)).isoformat() }}"
+        response_variable: afval
+      - variables:
+          items: "{{ afval['calendar.afvalophaling'].events | map(attribute='summary') | list }}"
+      - condition: template
+        value_template: "{{ items | count > 0 }}"
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🗑️ Afval buitenzetten"
+          message: "Morgen ophaling: {{ items | join(', ') }}"
+
+template:
+  # Eerstvolgende ophaling, elk uur ververst (voor het dashboard)
+  - triggers:
+      - trigger: time_pattern
+        minutes: 5
+      - trigger: homeassistant
+        event: start
+    actions:
+      # Enkel ophalen als de kalender bestaat (vermijdt fouten zolang ze niet gekoppeld is)
+      - condition: template
+        value_template: "{{ has_value('calendar.afvalophaling') }}"
+      - action: calendar.get_events
+        target:
+          entity_id: calendar.afvalophaling
+        data:
+          duration:
+            days: 14
+        response_variable: afval
+    sensor:
+      - name: Afval volgende ophaling
+        unique_id: afval_volgende_ophaling
+        icon: mdi:trash-can
+        state: >
+          {% set ev = (afval | default({})).get('calendar.afvalophaling', {}).get('events', []) | sort(attribute='start') %}
+          {{ ev[0].summary if ev | count > 0 else 'Geen ophaling gepland' }}
+        attributes:
+          datum: >
+            {% set ev = (afval | default({})).get('calendar.afvalophaling', {}).get('events', []) | sort(attribute='start') %}
+            {{ ev[0].start if ev | count > 0 else none }}
+          lijst: >
+            {% set ev = (afval | default({})).get('calendar.afvalophaling', {}).get('events', []) | sort(attribute='start') %}
+            {{ ev | map(attribute='summary') | list }}

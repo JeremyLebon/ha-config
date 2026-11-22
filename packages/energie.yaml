@@ -1,0 +1,220 @@
+# =============================================================================
+# ENERGIE – P1 (HomeWizard), PV (SolarEdge Modbus), batterij (Marstek)
+# Capaciteitstarief: voorspelde kwartierpiek + peak shaving met de batterij
+# =============================================================================
+#
+# Conventies (controleer in Ontwikkelhulpmiddelen > Statussen):
+#   sensor.p1_vermogen           W, positief = afname net, negatief = injectie
+#   sensor.p1_kwartiergemiddelde W, gemiddelde van het lopende kwartier (HomeWizard "average demand")
+#   sensor.p1_maandpiek          W, hoogste kwartierpiek deze maand (HomeWizard "peak demand current month")
+#   sensor.pv_vermogen           W, AC-vermogen omvormer
+#   sensor.batterij_vermogen     W, positief = ONTLADEN, negatief = laden
+#                                (is het bij jou omgekeerd: zet batterij_teken op -1 hieronder)
+#   sensor.batterij_soc          %
+#
+# Batterijsturing verloopt via 3 scripts onderaan. Die zijn de ENIGE plek waar
+# Marstek-specifieke entiteiten staan, zodat je van integratie kan wisselen
+# (Local API / Modbus / Omnibattery) zonder de automatisaties te herschrijven.
+
+input_number:
+  piek_drempel:
+    name: Piekdrempel capaciteitstarief
+    unit_of_measurement: W
+    min: 2500
+    max: 10000
+    step: 100
+    initial: 2500
+    mode: box
+    icon: mdi:transmission-tower
+  piek_marge:
+    name: Peak shaving start bij (% van drempel)
+    unit_of_measurement: "%"
+    min: 50
+    max: 100
+    step: 1
+    initial: 90
+    icon: mdi:percent
+  batterij_min_soc:
+    name: Batterij minimum SOC voor peak shaving
+    unit_of_measurement: "%"
+    min: 5
+    max: 80
+    step: 5
+    initial: 15
+    icon: mdi:battery-low
+
+input_boolean:
+  peak_shaving_actief:
+    name: Peak shaving ingeschakeld
+    icon: mdi:chart-bell-curve-cumulative
+  peak_shaving_bezig:
+    name: Peak shaving bezig (intern)
+    icon: mdi:battery-arrow-down
+
+template:
+  - sensor:
+      # Verwachte kwartierwaarde aan het einde van het lopende kwartier:
+      # (gemiddelde tot nu * verstreken tijd + huidig vermogen * resterende tijd) / 900 s
+      - name: Voorspelde kwartierpiek
+        unique_id: voorspelde_kwartierpiek
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set gem = states('sensor.p1_kwartiergemiddelde') | float(0) %}
+          {% set p = states('sensor.p1_vermogen') | float(0) %}
+          {% set n = now() %}
+          {% set t = (n.minute % 15) * 60 + n.second %}
+          {{ ((gem * t + p * (900 - t)) / 900) | round(0) }}
+        availability: >
+          {{ has_value('sensor.p1_kwartiergemiddelde') and has_value('sensor.p1_vermogen') }}
+
+      # Effectieve grens: onder de huidige maandpiek kost een kwartier niets extra.
+      - name: Effectieve piekgrens
+        unique_id: effectieve_piekgrens
+        unit_of_measurement: W
+        device_class: power
+        state: >
+          {{ [states('input_number.piek_drempel') | float(2500),
+              states('sensor.p1_maandpiek') | float(0)] | max | round(0) }}
+
+      - name: Huisverbruik
+        unique_id: huisverbruik
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set batterij_teken = 1 %}
+          {% set net = states('sensor.p1_vermogen') | float(0) %}
+          {% set pv = states('sensor.pv_vermogen') | float(0) %}
+          {% set bat = states('sensor.batterij_vermogen') | float(0) * batterij_teken %}
+          {{ [net + pv + bat, 0] | max | round(0) }}
+
+      - name: Injectie
+        unique_id: injectie
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: "{{ [0 - states('sensor.p1_vermogen') | float(0), 0] | max | round(0) }}"
+
+  - binary_sensor:
+      - name: Kwartierpiek dreigt
+        unique_id: kwartierpiek_dreigt
+        device_class: problem
+        delay_off:
+          minutes: 2
+        state: >
+          {{ states('sensor.voorspelde_kwartierpiek') | float(0) >
+             states('sensor.effectieve_piekgrens') | float(2500)
+             * states('input_number.piek_marge') | float(90) / 100 }}
+
+automation:
+  - id: energie_peak_shaving_start
+    alias: Energie – peak shaving starten
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.kwartierpiek_dreigt
+        to: "on"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.peak_shaving_actief
+        state: "on"
+      - condition: template
+        value_template: >
+          {{ states('sensor.batterij_soc') | float(0) >
+             states('input_number.batterij_min_soc') | float(15) }}
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.peak_shaving_bezig
+      - action: script.batterij_ontladen
+
+  - id: energie_peak_shaving_stop
+    alias: Energie – peak shaving stoppen
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.kwartierpiek_dreigt
+        to: "off"
+      - trigger: numeric_state
+        entity_id: sensor.batterij_soc
+        below: input_number.batterij_min_soc
+    conditions:
+      # Alleen terugzetten als wíj de batterij in ontlaadmodus zetten
+      - condition: state
+        entity_id: input_boolean.peak_shaving_bezig
+        state: "on"
+    actions:
+      - action: script.batterij_normaal
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.peak_shaving_bezig
+
+  # Waarschuwing als het kwartier écht boven de maandpiek dreigt uit te komen
+  - id: energie_piek_melding
+    alias: Energie – melding nieuwe maandpiek dreigt
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: template
+        value_template: >
+          {{ states('sensor.voorspelde_kwartierpiek') | float(0) >
+             states('sensor.effectieve_piekgrens') | float(2500) }}
+        for:
+          seconds: 30
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "⚡ Nieuwe kwartierpiek dreigt"
+          message: >
+            Voorspeld {{ (states('sensor.voorspelde_kwartierpiek') | float(0) / 1000) | round(2) }} kW,
+            grens {{ (states('sensor.effectieve_piekgrens') | float(0) / 1000) | round(2) }} kW.
+            Nu {{ (states('sensor.p1_vermogen') | float(0) / 1000) | round(2) }} kW afname.
+      # Niet blijven spammen binnen hetzelfde kwartier
+      - delay:
+          minutes: 10
+
+# --- Batterijsturing: hier je Marstek-integratie invullen -------------------
+# Voorbeeld gebaseerd op Marstek Venus Modbus (select "forceer modus" + vermogensgetallen).
+# Controleer de optienamen in Ontwikkelhulpmiddelen en pas aan.
+script:
+  batterij_ontladen:
+    alias: Batterij – forceer ontladen (peak shaving)
+    icon: mdi:battery-arrow-down
+    sequence:
+      - action: number.set_value
+        target:
+          entity_id: number.batterij_ontlaadvermogen
+        data:
+          value: 2500
+      - action: select.select_option
+        target:
+          entity_id: select.batterij_forceer_modus
+        data:
+          option: discharge
+
+  batterij_laden:
+    alias: Batterij – forceer laden (goedkope uren)
+    icon: mdi:battery-arrow-up
+    sequence:
+      - action: number.set_value
+        target:
+          entity_id: number.batterij_laadvermogen
+        data:
+          value: 2500
+      - action: select.select_option
+        target:
+          entity_id: select.batterij_forceer_modus
+        data:
+          option: charge
+
+  batterij_normaal:
+    alias: Batterij – terug naar automatisch
+    icon: mdi:battery-sync
+    sequence:
+      - action: select.select_option
+        target:
+          entity_id: select.batterij_forceer_modus
+        data:
+          option: none

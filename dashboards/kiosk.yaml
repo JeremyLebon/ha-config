@@ -1,0 +1,214 @@
+# =============================================================================
+# KIOSK-DASHBOARD – 7" touchscreen (Raspberry Pi Touch Display 2, liggend)
+# HACS-frontend nodig: power-flow-card-plus, clock-weather-card, mini-graph-card, kiosk-mode
+# Swipen tussen views: Energie / Vandaag / Info
+# =============================================================================
+kiosk_mode:
+  hide_header: true
+  hide_sidebar: true
+
+title: Thuis
+views:
+  # ---------------------------------------------------------------- ENERGIE
+  - title: Energie
+    path: energie
+    icon: mdi:lightning-bolt
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: custom:power-flow-card-plus
+            grid_options:
+              columns: full
+            entities:
+              grid:
+                entity: sensor.p1_vermogen
+              solar:
+                entity: sensor.pv_vermogen
+              battery:
+                entity: sensor.batterij_vermogen
+                state_of_charge: sensor.batterij_soc
+              home:
+                entity: sensor.huisverbruik
+            w_decimals: 0
+            kw_decimals: 2
+            watt_threshold: 1000
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Capaciteitstarief
+          - type: gauge
+            name: Voorspeld kwartier
+            entity: sensor.voorspelde_kwartierpiek
+            unit: W
+            min: 0
+            max: 8000
+            needle: true
+            severity:
+              green: 0
+              yellow: 2000
+              red: 2500
+          - type: tile
+            entity: sensor.p1_maandpiek
+            name: Maandpiek
+          - type: tile
+            entity: sensor.effectieve_piekgrens
+            name: Grens
+          - type: tile
+            entity: input_boolean.peak_shaving_actief
+            name: Peak shaving
+          - type: tile
+            entity: binary_sensor.kwartierpiek_dreigt
+            name: Piek dreigt
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Stroomprijs & batterij
+          - type: tile
+            entity: sensor.stroomprijs_nu
+            name: Prijs nu
+          - type: tile
+            entity: binary_sensor.goedkoop_uur
+            name: Goedkoop uur
+          - type: tile
+            entity: sensor.batterij_soc
+            name: Batterij
+          - type: tile
+            entity: input_boolean.laden_op_goedkope_uren
+            name: Laden op goedkope uren
+          - type: custom:mini-graph-card
+            name: Net vandaag
+            grid_options:
+              columns: full
+            hours_to_show: 24
+            points_per_hour: 4
+            line_width: 2
+            entities:
+              - entity: sensor.p1_vermogen
+                name: Net
+              - entity: sensor.pv_vermogen
+                name: PV
+
+  # ---------------------------------------------------------------- VANDAAG
+  - title: Vandaag
+    path: vandaag
+    icon: mdi:calendar-today
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: custom:clock-weather-card
+            entity: weather.thuis
+            grid_options:
+              columns: full
+            locale: nl
+            time_format: 24
+            forecast_rows: 4
+            hide_today_section: false
+
+      - type: grid
+        cards:
+          - type: picture-entity
+            entity: camera.buienradar
+            name: Buienradar
+            show_state: false
+            camera_view: auto
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.nmbs_trein
+            name: Trein
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.afval_volgende_ophaling
+            name: Afval
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: thermostat
+            entity: climate.vaillant_zone
+            name: Vaillant
+          - type: thermostat
+            entity: climate.pelletkachel
+            name: Kachel
+          - type: tile
+            entity: sensor.pellets_resterend
+            name: Pellets
+          - type: button
+            entity: input_button.pellets_bijgevuld
+            name: Bijgevuld
+            tap_action:
+              action: perform-action
+              perform_action: input_button.press
+              target:
+                entity_id: input_button.pellets_bijgevuld
+
+      - type: grid
+        cards:
+          - type: calendar
+            title: Smartschool
+            initial_view: listWeek
+            entities:
+              - calendar.smartschool
+            grid_options:
+              columns: full
+
+  # ---------------------------------------------------------------- INFO
+  - title: Info
+    path: info
+    icon: mdi:information-outline
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Beurs
+          - type: custom:mini-graph-card
+            name: BEL20
+            entities:
+              - sensor.beurs_bel20
+            hours_to_show: 168
+            points_per_hour: 0.5
+            grid_options:
+              columns: full
+          - type: custom:mini-graph-card
+            name: MSCI World
+            entities:
+              - sensor.beurs_msci_world
+            hours_to_show: 168
+            points_per_hour: 0.5
+            grid_options:
+              columns: full
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Promoties
+          - type: tile
+            entity: sensor.lidl_koffie
+            name: Lidl – koffie
+          - type: tile
+            entity: sensor.lidl_luiers
+            name: Lidl – luiers
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Toestellen
+          - type: tile
+            entity: input_boolean.wasmachine_draait
+            name: Wasmachine
+          - type: tile
+            entity: input_boolean.droogkast_draait
+            name: Droogkast
+          - type: tile
+            entity: input_boolean.kachel_vaillant_koppeling
+            name: Kachel ↔ Vaillant

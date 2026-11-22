@@ -1,0 +1,47 @@
+# Koppeling placeholder -> echte entiteit in jouw Home Assistant
+# Vul rechts de echte entity_id in (Instellingen > Entiteiten, of Ontwikkelhulpmiddelen > Statussen).
+# Leeg laten = nog niet gekoppeld. Daarna: python3 tools/koppel_entiteiten.py
+# Tussen haakjes staat een typische naam, ter indicatie (kan bij jou anders zijn).
+
+# --- Meldingen ---------------------------------------------------------------
+notify.mobile_app_gsm:                # notify.mobile_app_<naam_van_je_gsm>
+
+# --- Energie: HomeWizard P1 --------------------------------------------------
+sensor.p1_vermogen:                   # sensor.p1_meter_power
+sensor.p1_kwartiergemiddelde:         # sensor.p1_meter_average_demand
+sensor.p1_maandpiek:                  # sensor.p1_meter_peak_demand_current_month
+
+# --- Energie: SolarEdge (solaredge-modbus-multi) -----------------------------
+sensor.pv_vermogen:                   # sensor.solaredge_i1_ac_power
+
+# --- Energie: Marstek ---------------------------------------------------------
+sensor.batterij_vermogen:             # afhankelijk van integratie (positief = ontladen!)
+sensor.batterij_soc:                  # sensor.marstek_..._battery_soc
+select.batterij_forceer_modus:        # select.marstek_..._force_mode
+number.batterij_ontlaadvermogen:      # number.marstek_..._discharge_power
+number.batterij_laadvermogen:         # number.marstek_..._charge_power
+
+# --- Prijzen: ENTSO-E ---------------------------------------------------------
+sensor.stroomprijs_nu:                # sensor.current_electricity_market_price
+sensor.stroomprijs_gem:               # sensor.average_electricity_price_today
+
+# --- Verwarming ---------------------------------------------------------------
+climate.vaillant_zone:                # climate.<systeem>_zone_1 (myVAILLANT)
+climate.pelletkachel:                 # climate.<naam_kachel> (Austroflamm/Fumis)
+
+# --- Huishouden: Shelly + afval ------------------------------------------------
+sensor.wasmachine_vermogen:           # sensor.shelly_plug_..._power
+sensor.droogkast_vermogen:            # sensor.shelly_plug_..._power
+calendar.afvalophaling:               # calendar.recycle_... of je iCal-kalender
+
+# --- Gezin ---------------------------------------------------------------------
+calendar.smartschool:                 # calendar.smartschool (Remote Calendar)
+sensor.nmbs_trein:                    # sensor.kortrijk_gent_sint_pieters
+sensor.lidl_koffie:                   # trefwoordsensor uit Lidl Weekly Offers
+sensor.lidl_luiers:                   # trefwoordsensor uit Lidl Weekly Offers
+
+# --- Info / weer ----------------------------------------------------------------
+weather.thuis:                        # weather.forecast_home of weather.<kmi>
+camera.buienradar:                    # camera.buienradar
+sensor.beurs_bel20:                   # sensor.yahoofinance_bfx
+sensor.beurs_msci_world:              # sensor.yahoofinance_iwda_as

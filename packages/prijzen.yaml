@@ -1,0 +1,135 @@
+# =============================================================================
+# DYNAMISCHE PRIJZEN – ENTSO-E day-ahead (HACS: JaccoR/hass-entso-e)
+# =============================================================================
+#   sensor.stroomprijs_nu   €/kWh, huidige marktprijs (ENTSO-E "current electricity market price")
+#   sensor.stroomprijs_gem  €/kWh, gemiddelde prijs vandaag
+#
+# Logica: een uur is "goedkoop" als de prijs onder een vaste drempel ligt
+# OF een instelbaar percentage onder het daggemiddelde.
+
+input_number:
+  prijs_goedkoop_drempel:
+    name: Goedkoop onder (vaste drempel)
+    unit_of_measurement: €/kWh
+    min: -0.5
+    max: 0.5
+    step: 0.01
+    initial: 0.05
+    mode: box
+    icon: mdi:currency-eur
+  prijs_goedkoop_pct:
+    name: Goedkoop als % onder daggemiddelde
+    unit_of_measurement: "%"
+    min: 0
+    max: 80
+    step: 5
+    initial: 30
+    icon: mdi:percent
+  batterij_max_soc_netladen:
+    name: Batterij max SOC bij laden van net
+    unit_of_measurement: "%"
+    min: 20
+    max: 100
+    step: 5
+    initial: 90
+    icon: mdi:battery-high
+
+input_boolean:
+  laden_op_goedkope_uren:
+    name: Batterij laden op goedkope uren
+    icon: mdi:battery-clock
+  netladen_bezig:
+    name: Netladen bezig (intern)
+    icon: mdi:battery-arrow-up
+
+template:
+  - binary_sensor:
+      - name: Goedkoop uur
+        unique_id: goedkoop_uur
+        icon: mdi:cash-clock
+        state: >
+          {% set p = states('sensor.stroomprijs_nu') | float(99) %}
+          {% set gem = states('sensor.stroomprijs_gem') | float(99) %}
+          {% set pct = states('input_number.prijs_goedkoop_pct') | float(30) %}
+          {{ p <= states('input_number.prijs_goedkoop_drempel') | float(0.05)
+             or (gem > 0 and p <= gem * (1 - pct / 100)) }}
+      - name: Negatieve stroomprijs
+        unique_id: negatieve_stroomprijs
+        icon: mdi:cash-minus
+        state: "{{ states('sensor.stroomprijs_nu') | float(0) < 0 }}"
+
+automation:
+  - id: prijzen_batterij_laden_start
+    alias: Prijzen – batterij laden op goedkoop uur
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.goedkoop_uur
+        to: "on"
+      - trigger: state
+        entity_id: input_boolean.laden_op_goedkope_uren
+        to: "on"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.laden_op_goedkope_uren
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.goedkoop_uur
+        state: "on"
+      # Nooit laden terwijl peak shaving actief is of een piek dreigt
+      - condition: state
+        entity_id: input_boolean.peak_shaving_bezig
+        state: "off"
+      - condition: state
+        entity_id: binary_sensor.kwartierpiek_dreigt
+        state: "off"
+      - condition: template
+        value_template: >
+          {{ states('sensor.batterij_soc') | float(100) <
+             states('input_number.batterij_max_soc_netladen') | float(90) }}
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.netladen_bezig
+      - action: script.batterij_laden
+
+  - id: prijzen_batterij_laden_stop
+    alias: Prijzen – batterij laden stoppen
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.goedkoop_uur
+        to: "off"
+      - trigger: state
+        entity_id: binary_sensor.kwartierpiek_dreigt
+        to: "on"
+      - trigger: numeric_state
+        entity_id: sensor.batterij_soc
+        above: input_number.batterij_max_soc_netladen
+      - trigger: state
+        entity_id: input_boolean.laden_op_goedkope_uren
+        to: "off"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.netladen_bezig
+        state: "on"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.netladen_bezig
+      - action: script.batterij_normaal
+
+  - id: prijzen_negatief_melding
+    alias: Prijzen – melding negatieve stroomprijs
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.negatieve_stroomprijs
+        to: "on"
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "💶 Negatieve stroomprijs"
+          message: >
+            Stroom kost nu {{ states('sensor.stroomprijs_nu') | float(0) | round(3) }} €/kWh.
+            Ideaal moment voor wasmachine, vaatwas of boiler.
