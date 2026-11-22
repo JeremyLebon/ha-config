@@ -1,7 +1,7 @@
 # =============================================================================
 # KIOSK-DASHBOARD – 7" touchscreen (Raspberry Pi Touch Display 2, liggend)
-# HACS-frontend nodig: power-flow-card-plus, clock-weather-card, mini-graph-card, kiosk-mode
-# Swipen tussen views: Energie / Vandaag / Info
+# Kaarten uit de Marketplace nodig: power-flow-card-plus, clock-weather-card, mini-graph-card, kiosk-mode
+# Navigatie: knoppenbalk bovenaan elke view (Vandaag / Energie / Info); Vandaag is de startpagina
 # =============================================================================
 kiosk_mode:
   hide_header: true
@@ -9,95 +9,6 @@ kiosk_mode:
 
 title: Thuis
 views:
-  # ---------------------------------------------------------------- ENERGIE
-  - title: Energie
-    path: energie
-    icon: mdi:lightning-bolt
-    type: sections
-    max_columns: 3
-    sections:
-      - type: grid
-        cards:
-          - type: custom:power-flow-card-plus
-            grid_options:
-              columns: full
-            entities:
-              grid:
-                entity: sensor.woonkamer_p1_meter_realtime_vermogen
-              solar:
-                entity: sensor.pv_vermogen
-              battery:
-                entity: sensor.marstek_venus_1_ac_power
-                state_of_charge: sensor.marstek_venus_1_battery_soc
-              home:
-                entity: sensor.huisverbruik
-            w_decimals: 0
-            kw_decimals: 2
-            watt_threshold: 1000
-
-      - type: grid
-        cards:
-          - type: heading
-            heading: Capaciteitstarief
-          - type: gauge
-            name: Voorspeld kwartier
-            entity: sensor.voorspelde_kwartierpiek
-            unit: W
-            min: 0
-            max: 8000
-            needle: true
-            severity:
-              green: 0
-              yellow: 2000
-              red: 2500
-          - type: tile
-            entity: sensor.maandpiek_berekend
-            name: Maandpiek
-          - type: tile
-            entity: sensor.effectieve_piekgrens
-            name: Grens
-          - type: tile
-            entity: input_boolean.peak_shaving_actief
-            name: Peak shaving
-          - type: tile
-            entity: binary_sensor.kwartierpiek_dreigt
-            name: Piek dreigt
-
-      - type: grid
-        cards:
-          - type: heading
-            heading: Stroomprijs & batterij
-          - type: tile
-            entity: sensor.stroomprijs_nu
-            name: Prijs nu
-          - type: tile
-            entity: binary_sensor.goedkoop_uur
-            name: Goedkoop uur
-          - type: tile
-            entity: sensor.marstek_venus_1_battery_soc
-            name: Batterij
-          - type: tile
-            entity: input_boolean.laden_op_goedkope_uren
-            name: Laden op goedkope uren
-          - type: tile
-            entity: sensor.pv_verwachting_morgen
-            name: PV morgen
-          - type: tile
-            entity: binary_sensor.zon_vult_batterij
-            name: Zon vult batterij
-          - type: custom:mini-graph-card
-            name: Net vandaag
-            grid_options:
-              columns: full
-            hours_to_show: 24
-            points_per_hour: 4
-            line_width: 2
-            entities:
-              - entity: sensor.woonkamer_p1_meter_realtime_vermogen
-                name: Net
-              - entity: sensor.pv_vermogen
-                name: PV
-
   # ---------------------------------------------------------------- VANDAAG
   - title: Vandaag
     path: vandaag
@@ -105,6 +16,39 @@ views:
     type: sections
     max_columns: 3
     sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: button
+            name: Vandaag
+            icon: mdi:calendar-today
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/vandaag
+          - type: button
+            name: Energie
+            icon: mdi:lightning-bolt
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/energie
+          - type: button
+            name: Info
+            icon: mdi:information-outline
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/info
       - type: grid
         cards:
           - type: custom:clock-weather-card
@@ -223,6 +167,128 @@ views:
             grid_options:
               columns: full
 
+  # ---------------------------------------------------------------- ENERGIE
+  - title: Energie
+    path: energie
+    icon: mdi:lightning-bolt
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: button
+            name: Vandaag
+            icon: mdi:calendar-today
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/vandaag
+          - type: button
+            name: Energie
+            icon: mdi:lightning-bolt
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/energie
+          - type: button
+            name: Info
+            icon: mdi:information-outline
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/info
+      - type: grid
+        cards:
+          - type: custom:power-flow-card-plus
+            grid_options:
+              columns: full
+            entities:
+              grid:
+                entity: sensor.woonkamer_p1_meter_realtime_vermogen
+              solar:
+                entity: sensor.pv_vermogen
+              battery:
+                entity: sensor.marstek_venus_1_ac_power
+                state_of_charge: sensor.marstek_venus_1_battery_soc
+              home:
+                entity: sensor.huisverbruik
+            w_decimals: 0
+            kw_decimals: 2
+            watt_threshold: 1000
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Capaciteitstarief
+          - type: gauge
+            name: Voorspeld kwartier
+            entity: sensor.voorspelde_kwartierpiek
+            unit: W
+            min: 0
+            max: 8000
+            needle: true
+            severity:
+              green: 0
+              yellow: 2000
+              red: 2500
+          - type: tile
+            entity: sensor.maandpiek_berekend
+            name: Maandpiek
+          - type: tile
+            entity: sensor.effectieve_piekgrens
+            name: Grens
+          - type: tile
+            entity: input_boolean.peak_shaving_actief
+            name: Peak shaving
+          - type: tile
+            entity: binary_sensor.kwartierpiek_dreigt
+            name: Piek dreigt
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Stroomprijs & batterij
+          - type: tile
+            entity: sensor.stroomprijs_nu
+            name: Prijs nu
+          - type: tile
+            entity: binary_sensor.goedkoop_uur
+            name: Goedkoop uur
+          - type: tile
+            entity: sensor.marstek_venus_1_battery_soc
+            name: Batterij
+          - type: tile
+            entity: input_boolean.laden_op_goedkope_uren
+            name: Laden op goedkope uren
+          - type: tile
+            entity: sensor.pv_verwachting_morgen
+            name: PV morgen
+          - type: tile
+            entity: binary_sensor.zon_vult_batterij
+            name: Zon vult batterij
+          - type: custom:mini-graph-card
+            name: Net vandaag
+            grid_options:
+              columns: full
+            hours_to_show: 24
+            points_per_hour: 4
+            line_width: 2
+            entities:
+              - entity: sensor.woonkamer_p1_meter_realtime_vermogen
+                name: Net
+              - entity: sensor.pv_vermogen
+                name: PV
+
   # ---------------------------------------------------------------- INFO
   - title: Info
     path: info
@@ -230,6 +296,39 @@ views:
     type: sections
     max_columns: 3
     sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: button
+            name: Vandaag
+            icon: mdi:calendar-today
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/vandaag
+          - type: button
+            name: Energie
+            icon: mdi:lightning-bolt
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/energie
+          - type: button
+            name: Info
+            icon: mdi:information-outline
+            show_state: false
+            grid_options:
+              columns: 4
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/info
       - type: grid
         cards:
           - type: heading
