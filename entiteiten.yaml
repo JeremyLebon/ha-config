@@ -38,7 +38,6 @@ climate.badkamer:                     # climate.<blumfeldt...> (Tuya / Smart Lif
 # --- Huishouden: Shelly + afval ------------------------------------------------
 sensor.wasmachine_vermogen:           # sensor.shelly_plug_..._power
 sensor.droogkast_vermogen:            # sensor.shelly_plug_..._power
-calendar.afvalophaling:               # calendar.recycle_... of je iCal-kalender
 
 # --- Gezin ---------------------------------------------------------------------
 calendar.smartschool:                 # calendar.smartschool (Remote Calendar)

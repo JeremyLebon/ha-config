@@ -3,7 +3,8 @@
 # =============================================================================
 #   sensor.wasmachine_vermogen   W (Shelly Plug)
 #   sensor.droogkast_vermogen    W (Shelly Plug)
-#   calendar.afvalophaling       kalender met ophaaldata (Recycle!-integratie of iCal via Remote Calendar)
+#   Afval: RecycleApp-integratie (olibos), één sensor per fractie met de volgende ophaaldatum.
+#   AFVAL_SENSOREN: lijst in custom_templates/afval.jinja
 #
 # Drempels per toestel even nakijken in de geschiedenis van de vermogenssensor:
 # sommige toestellen blijven na het programma enkele watt trekken (display, anti-kreuk).
@@ -69,52 +70,33 @@ automation:
     triggers:
       - trigger: time
         at: "19:00:00"
-    actions:
-      - action: calendar.get_events
-        target:
-          entity_id: calendar.afvalophaling
-        data:
-          start_date_time: "{{ (today_at('00:00') + timedelta(days=1)).isoformat() }}"
-          end_date_time: "{{ (today_at('00:00') + timedelta(days=2)).isoformat() }}"
-        response_variable: afval
-      - variables:
-          items: "{{ afval['calendar.afvalophaling'].events | map(attribute='summary') | list }}"
+    conditions:
       - condition: template
-        value_template: "{{ items | count > 0 }}"
+        value_template: "{{ state_attr('sensor.afval_volgende_ophaling', 'dagen') == 1 }}"
+    actions:
       - action: notify.mobile_app_gsm
         data:
           title: "🗑️ Afval buitenzetten"
-          message: "Morgen ophaling: {{ items | join(', ') }}"
+          message: "{{ states('sensor.afval_volgende_ophaling') }}"
 
 template:
-  # Eerstvolgende ophaling, elk uur ververst (voor het dashboard)
-  - triggers:
-      - trigger: time_pattern
-        minutes: 5
-      - trigger: homeassistant
-        event: start
-    actions:
-      # Enkel ophalen als de kalender bestaat (vermijdt fouten zolang ze niet gekoppeld is)
-      - condition: template
-        value_template: "{{ has_value('calendar.afvalophaling') }}"
-      - action: calendar.get_events
-        target:
-          entity_id: calendar.afvalophaling
-        data:
-          duration:
-            days: 14
-        response_variable: afval
-    sensor:
+  - sensor:
       - name: Afval volgende ophaling
         unique_id: afval_volgende_ophaling
         icon: mdi:trash-can
         state: >
-          {% set ev = (afval | default({})).get('calendar.afvalophaling', {}).get('events', []) | sort(attribute='start') %}
-          {{ ev[0].summary if ev | count > 0 else 'Geen ophaling gepland' }}
+          {% from 'afval.jinja' import afval_ophalingen %}
+          {% set o = afval_ophalingen() | from_json %}
+          {{ o[0].tekst if o | count > 0 else 'Geen ophaling gepland' }}
         attributes:
           datum: >
-            {% set ev = (afval | default({})).get('calendar.afvalophaling', {}).get('events', []) | sort(attribute='start') %}
-            {{ ev[0].start if ev | count > 0 else none }}
-          lijst: >
-            {% set ev = (afval | default({})).get('calendar.afvalophaling', {}).get('events', []) | sort(attribute='start') %}
-            {{ ev | map(attribute='summary') | list }}
+            {% from 'afval.jinja' import afval_ophalingen %}
+            {% set o = afval_ophalingen() | from_json %}
+            {{ o[0].datum if o | count > 0 else none }}
+          dagen: >
+            {% from 'afval.jinja' import afval_ophalingen %}
+            {% set o = afval_ophalingen() | from_json %}
+            {{ o[0].dagen if o | count > 0 else none }}
+          planning: >
+            {% from 'afval.jinja' import afval_ophalingen %}
+            {{ afval_ophalingen() | from_json | map(attribute='tekst') | list }}

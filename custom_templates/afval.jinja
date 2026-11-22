@@ -1,0 +1,32 @@
+{#- Afval – ophaaldata uit de RecycleApp-integratie (één sensor per fractie, state = YYYY-MM-DD).
+    AFVAL_SENSOREN: entiteit -> korte naam. Pas aan als er fracties bijkomen. -#}
+{%- set AFVAL_SENSOREN = {
+      'sensor.gf_t_keukenafval': 'GFT',
+      'sensor.papier_karton': 'Papier-karton',
+      'sensor.pmd': 'PMD',
+      'sensor.restafval': 'Restafval'} -%}
+
+{#- afval_ophalingen(): JSON-lijst per ophaaldag, oplopend:
+    [{datum: 'YYYY-MM-DD', dagen: 1, fracties: ['PMD', ...], tekst: 'Morgen: PMD, Restafval'}, ...] -#}
+{%- macro afval_ophalingen() -%}
+  {%- set dagnamen = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'] -%}
+  {%- set vandaag = now().date() -%}
+  {%- set ns = namespace(per={}) -%}
+  {%- for ent, naam in AFVAL_SENSOREN.items() -%}
+    {%- set d = states(ent) | as_datetime(none) -%}
+    {%- if d is not none and d.date() >= vandaag -%}
+      {%- set k = d.date().isoformat() -%}
+      {%- set ns.per = dict(ns.per, **{k: (ns.per.get(k, []) + [naam])}) -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- set uit = namespace(l=[]) -%}
+  {%- for k in ns.per.keys() | sort -%}
+    {%- set d = k | as_datetime -%}
+    {%- set dagen = (d.date() - vandaag).days -%}
+    {%- set wanneer = 'Vandaag' if dagen == 0 else ('Morgen' if dagen == 1
+                      else dagnamen[d.weekday()] | capitalize ~ ' ' ~ d.strftime('%d/%m')) -%}
+    {%- set uit.l = uit.l + [{'datum': k, 'dagen': dagen, 'fracties': ns.per[k],
+                              'tekst': wanneer ~ ': ' ~ (ns.per[k] | join(', '))}] -%}
+  {%- endfor -%}
+  {{- uit.l | to_json -}}
+{%- endmacro -%}
