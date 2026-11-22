@@ -1,9 +1,8 @@
 # =============================================================================
 # BEURS – Yahoo Finance (Marketplace: "Yahoo Finance" van iprak)
 # =============================================================================
-# ACTIVEREN: eerst de integratie installeren via de Marketplace en herstarten,
-# daarna dit bestand hernoemen naar beurs.yaml (zonder .uit) en opnieuw herstarten.
-# (Zonder geïnstalleerde integratie geeft de sleutel 'yahoofinance:' een configuratiefout.)
+# Vereist de integratie Yahoo Finance (Marketplace); zonder die integratie geeft de
+# sleutel 'yahoofinance:' een configuratiefout.
 #
 # Per symbool maakt de integratie sensor.yahoofinance_<symbool>, bv.
 #   ^BFX      -> sensor.yahoofinance_bfx        (BEL20)
