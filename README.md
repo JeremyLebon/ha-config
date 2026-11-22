@@ -44,6 +44,8 @@ De configuratie is gevalideerd met `hass --script check_config` (Home Assistant 
 | Meldingen | Companion app op je gsm | officieel | levert `notify.mobile_app_...` en aanwezigheid |
 | Energie | **HomeWizard** | officieel | lokale API aanzetten in de HomeWizard-app |
 | Energie | **Shelly** | officieel | wordt automatisch ontdekt |
+| Toestellen | **Tuya** (Smart Life) | officieel | koppelen met de QR-code in de Smart Life-app (Ik > instellingen > account); o.a. Blumfeldt |
+| Toestellen | **Tuya Local** (optioneel) | HACS | zelfde toestellen lokaal, zonder Tuya-cloud; local key nodig |
 | Energie | **SolarEdge Modbus Multi** | HACS | eerst Modbus TCP aanzetten via SetApp (poort 1502) |
 | Energie | **Marstek Venus Modbus** of **Marstek Local API** | HACS | Modbus is volgens gebruikers stabieler |
 | Prijzen | **ENTSO-E** | HACS | gratis API-token aanvragen bij ENTSO-E Transparency |
