@@ -11,10 +11,11 @@ configuration.yaml        hoofdconfig, laadt packages/ en het kiosk-dashboard
 entiteiten.yaml           placeholder -> echte entity_id
 packages/
   energie.yaml            P1, PV, Marstek, voorspelde kwartierpiek, peak shaving, batterijscripts
-  prijzen.yaml            ENTSO-E, goedkoop uur, batterij laden van net, negatieve prijs
+  prijzen.yaml            ENTSO-E, goedkoop uur, PV-verwachting, batterij laden van net, negatieve prijs
   verwarming.yaml         Vaillant <-> kachel, pelletvoorraad, storingsmelding
   huishouden.yaml         wasmachine/droogkast klaar, afvalophaling
   gezin.yaml              Smartschool, NMBS-vertraging, Lidl-promoties
+  onderhoud.yaml          Watchman, temperatuur en schijf van de Pi
 dashboards/kiosk.yaml     3 views: Energie / Vandaag / Info
 tools/koppel_entiteiten.py
 ```
@@ -44,6 +45,9 @@ De configuratie is gevalideerd met `hass --script check_config` (Home Assistant 
 | Energie | **SolarEdge Modbus Multi** | HACS | eerst Modbus TCP aanzetten via SetApp (poort 1502) |
 | Energie | **Marstek Venus Modbus** of **Marstek Local API** | HACS | Modbus is volgens gebruikers stabieler |
 | Prijzen | **ENTSO-E** | HACS | gratis API-token aanvragen bij ENTSO-E Transparency |
+| PV-verwachting | **Forecast.Solar** | officieel | oriëntatie, helling en kWp van je panelen; Solcast (HACS) is nauwkeuriger |
+| Onderhoud | **System Monitor** | officieel | sensoren CPU-temperatuur en schijfgebruik aanzetten |
+| Onderhoud | **Watchman** | HACS | best als laatste installeren, na het koppelen van de entiteiten |
 | Verwarming | **myVAILLANT** | HACS | cloud, login van de myVAILLANT-app |
 | Verwarming | **Austroflamm** (Fumis) | officieel | vereist Fumis WiRCU-wifimodule |
 | Weer | **Buienradar** | officieel | levert ook `camera.buienradar` |
@@ -114,4 +118,6 @@ piek dreigt             = voorspelling > grens * marge%      -> batterij ontlade
 piek voorbij (2 min)    -> batterij terug naar automatisch (alleen als peak shaving hem had overgenomen)
 ```
 
-Laden van het net op goedkope uren gebeurt nooit terwijl er een piek dreigt.
+Laden van het net op goedkope uren gebeurt nooit terwijl er een piek dreigt, en ook niet als de zon
+de batterij straks toch vult: vóór 14u telt de resterende PV-verwachting van vandaag, daarna die van morgen
+(drempel instelbaar, standaard 8 kWh). Bij een negatieve stroomprijs wordt er altijd geladen.

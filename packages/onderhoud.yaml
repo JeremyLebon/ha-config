@@ -1,0 +1,64 @@
+# =============================================================================
+# ONDERHOUD – Watchman (HACS) + System Monitor (officieel) voor de Pi 5
+# =============================================================================
+#   sensor.watchman_ontbrekende_entiteiten  Watchman "missing entities" (aantal, lijst in attribuut 'entities')
+#   sensor.watchman_ontbrekende_acties      Watchman "missing actions"  (aantal, lijst in attribuut 'services')
+#   sensor.pi_cpu_temperatuur               System Monitor, °C
+#   sensor.pi_schijfgebruik                 System Monitor "Disk usage /", %
+#
+# Watchman scant je YAML op entiteiten en acties die niet bestaan. Na het koppelen van
+# entiteiten.yaml zou het aantal 0 moeten zijn. Het rapport staat in /config/watchman_report.txt
+# (of start handmatig: Ontwikkelhulpmiddelen > Acties > watchman.report).
+
+automation:
+  - id: onderhoud_watchman_melding
+    alias: Onderhoud – Watchman vindt ontbrekende entiteiten of acties
+    mode: single
+    triggers:
+      - trigger: time
+        at: "20:00:00"
+    conditions:
+      - condition: time
+        weekday: [sun]
+      - condition: template
+        value_template: >
+          {{ states('sensor.watchman_ontbrekende_entiteiten') | int(0) > 0
+             or states('sensor.watchman_ontbrekende_acties') | int(0) > 0 }}
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🔧 Watchman"
+          message: >
+            {{ states('sensor.watchman_ontbrekende_entiteiten') | int(0) }} ontbrekende entiteit(en),
+            {{ states('sensor.watchman_ontbrekende_acties') | int(0) }} ontbrekende actie(s).
+            Zie watchman_report.txt.
+
+  - id: onderhoud_pi_temperatuur
+    alias: Onderhoud – Pi te warm
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.pi_cpu_temperatuur
+        above: 75
+        for:
+          minutes: 10
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🌡️ Home Assistant-server warm"
+          message: "CPU-temperatuur {{ states('sensor.pi_cpu_temperatuur') }} °C sinds 10 minuten. Koeling/behuizing controleren."
+
+  - id: onderhoud_pi_schijf
+    alias: Onderhoud – schijf bijna vol
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.pi_schijfgebruik
+        above: 85
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "💾 Schijf bijna vol"
+          message: >
+            Schijfgebruik {{ states('sensor.pi_schijfgebruik') }} %.
+            Oude back-ups opruimen of recorder purge_keep_days verlagen.

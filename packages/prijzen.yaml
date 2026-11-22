@@ -6,6 +6,12 @@
 #
 # Logica: een uur is "goedkoop" als de prijs onder een vaste drempel ligt
 # OF een instelbaar percentage onder het daggemiddelde.
+#
+# PV-verwachting (Forecast.Solar, officieel – of Solcast via HACS):
+#   sensor.pv_verwachting_vandaag_rest   kWh, nog te verwachten opbrengst vandaag
+#   sensor.pv_verwachting_morgen         kWh, verwachte opbrengst morgen
+# Netladen wordt overgeslagen als de zon de batterij straks toch vult:
+# vóór 14u telt de rest van vandaag, daarna de verwachting voor morgen.
 
 input_number:
   prijs_goedkoop_drempel:
@@ -34,6 +40,16 @@ input_number:
     initial: 90
     icon: mdi:battery-high
 
+  pv_verwachting_drempel:
+    name: Niet van net laden als PV-verwachting boven
+    unit_of_measurement: kWh
+    min: 0
+    max: 50
+    step: 0.5
+    initial: 8
+    mode: box
+    icon: mdi:solar-power-variant
+
 input_boolean:
   laden_op_goedkope_uren:
     name: Batterij laden op goedkope uren
@@ -53,6 +69,19 @@ template:
           {% set pct = states('input_number.prijs_goedkoop_pct') | float(30) %}
           {{ p <= states('input_number.prijs_goedkoop_drempel') | float(0.05)
              or (gem > 0 and p <= gem * (1 - pct / 100)) }}
+      - name: Zon vult batterij
+        unique_id: zon_vult_batterij
+        icon: mdi:weather-sunny
+        state: >
+          {% set rest = states('sensor.pv_verwachting_vandaag_rest') | float(0) %}
+          {% set morgen = states('sensor.pv_verwachting_morgen') | float(0) %}
+          {% set relevant = rest if now().hour < 14 else morgen %}
+          {{ relevant >= states('input_number.pv_verwachting_drempel') | float(8) }}
+        attributes:
+          verwachting_kwh: >
+            {{ (states('sensor.pv_verwachting_vandaag_rest') | float(0)) if now().hour < 14
+               else (states('sensor.pv_verwachting_morgen') | float(0)) }}
+          periode: "{{ 'rest van vandaag' if now().hour < 14 else 'morgen' }}"
       - name: Negatieve stroomprijs
         unique_id: negatieve_stroomprijs
         icon: mdi:cash-minus
@@ -69,6 +98,9 @@ automation:
       - trigger: state
         entity_id: input_boolean.laden_op_goedkope_uren
         to: "on"
+      - trigger: state
+        entity_id: binary_sensor.negatieve_stroomprijs
+        to: "on"
     conditions:
       - condition: state
         entity_id: input_boolean.laden_op_goedkope_uren
@@ -83,6 +115,16 @@ automation:
       - condition: state
         entity_id: binary_sensor.kwartierpiek_dreigt
         state: "off"
+      # Niet van het net laden als de zon het straks gratis doet
+      # (bij negatieve prijs laden we wel: dan word je betaald om af te nemen)
+      - condition: or
+        conditions:
+          - condition: state
+            entity_id: binary_sensor.zon_vult_batterij
+            state: "off"
+          - condition: state
+            entity_id: binary_sensor.negatieve_stroomprijs
+            state: "on"
       - condition: template
         value_template: >
           {{ states('sensor.batterij_soc') | float(100) <

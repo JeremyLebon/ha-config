@@ -79,6 +79,12 @@ views:
           - type: tile
             entity: input_boolean.laden_op_goedkope_uren
             name: Laden op goedkope uren
+          - type: tile
+            entity: sensor.pv_verwachting_morgen
+            name: PV morgen
+          - type: tile
+            entity: binary_sensor.zon_vult_batterij
+            name: Zon vult batterij
           - type: custom:mini-graph-card
             name: Net vandaag
             grid_options:
@@ -212,3 +218,17 @@ views:
           - type: tile
             entity: input_boolean.kachel_vaillant_koppeling
             name: Kachel ↔ Vaillant
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Server
+          - type: tile
+            entity: sensor.pi_cpu_temperatuur
+            name: CPU-temperatuur
+          - type: tile
+            entity: sensor.pi_schijfgebruik
+            name: Schijf
+          - type: tile
+            entity: sensor.watchman_ontbrekende_entiteiten
+            name: Ontbrekende entiteiten

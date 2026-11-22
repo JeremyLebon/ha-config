@@ -25,6 +25,10 @@ number.batterij_laadvermogen:         # number.marstek_..._charge_power
 sensor.stroomprijs_nu:                # sensor.current_electricity_market_price
 sensor.stroomprijs_gem:               # sensor.average_electricity_price_today
 
+# --- PV-verwachting: Forecast.Solar (of Solcast) -----------------------------
+sensor.pv_verwachting_vandaag_rest:   # sensor.energy_production_today_remaining
+sensor.pv_verwachting_morgen:         # sensor.energy_production_tomorrow
+
 # --- Verwarming ---------------------------------------------------------------
 climate.vaillant_zone:                # climate.<systeem>_zone_1 (myVAILLANT)
 climate.pelletkachel:                 # climate.<naam_kachel> (Austroflamm/Fumis)
@@ -45,3 +49,9 @@ weather.thuis:                        # weather.forecast_home of weather.<kmi>
 camera.buienradar:                    # camera.buienradar
 sensor.beurs_bel20:                   # sensor.yahoofinance_bfx
 sensor.beurs_msci_world:              # sensor.yahoofinance_iwda_as
+
+# --- Onderhoud: Watchman + System Monitor ---------------------------------------
+sensor.watchman_ontbrekende_entiteiten: # sensor.watchman_missing_entities
+sensor.watchman_ontbrekende_acties:   # sensor.watchman_missing_actions
+sensor.pi_cpu_temperatuur:            # sensor.system_monitor_processor_temperature
+sensor.pi_schijfgebruik:              # sensor.system_monitor_disk_usage
