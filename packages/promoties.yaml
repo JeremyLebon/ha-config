@@ -2,10 +2,10 @@
 # PROMOTIES – Lidl (HACS-integratie) + Colruyt (RESTful, ingebouwd)
 # =============================================================================
 #
-# LIDL – integratie "Lidl Weekly Offers" (HACS, FaserF/ha-lidl), login met Lidl Plus.
-#   Maak in de opties van de integratie een trefwoordfilter per product (koffie, luiers, ...).
-#   Elke filter wordt een sensor (waarde = aantal aanbiedingen). Koppel ze in entiteiten.yaml
-#   en zet ze in de lijst LIDL_SENSOREN hieronder (template "Lidl in promo").
+# LIDL – integratie "Lidl Weekly Offers" (Marketplace, FaserF/ha-lidl), login met Lidl Plus.
+#   We filteren zelf op trefwoorden in de aanbiedingen van je winkel (deze week + preview).
+#   Trefwoorden instellen: input_text.lidl_trefwoorden, komma-gescheiden ("koffie, luiers, wasmiddel").
+#   Bronsensoren (je winkel) en filterlogica: custom_templates/promoties.jinja
 #
 # COLRUYT – openbaar productendpoint van colruyt.be (geen officiële API, kan wijzigen):
 #   https://ecgproductmw.colruyt.be/ecgproductmw/v2/nl/products/<product-id>?clientCode=clp&placeId=<winkel-id>
@@ -23,6 +23,10 @@
 #   (alles wat binary_sensor.colruyt_..._promo heet).
 
 input_text:
+  lidl_trefwoorden:
+    name: Lidl trefwoorden (komma-gescheiden)
+    icon: mdi:tag-search
+    max: 255
   colruyt_winkel_id:
     name: Colruyt winkel-id (placeId)
     icon: mdi:store
@@ -110,19 +114,14 @@ template:
       - name: Lidl in promo
         unique_id: lidl_in_promo
         icon: mdi:cart-percent
-        # LIDL_SENSOREN: vul hier al je Lidl-trefwoordsensoren in
+        # Logica staat in custom_templates/promoties.jinja (macro lidl_producten)
         state: >
-          {% set lijst = ['sensor.lidl_koffie', 'sensor.lidl_luiers'] %}
-          {{ lijst | map('states') | map('int', 0) | select('gt', 0) | list | count }}
+          {% from 'promoties.jinja' import lidl_producten %}
+          {{ lidl_producten() | from_json | count }}
         attributes:
           producten: >
-            {% set lijst = ['sensor.lidl_koffie', 'sensor.lidl_luiers'] %}
-            {% set ns = namespace(l=[]) %}
-            {% for e in lijst if states(e) | int(0) > 0 %}
-              {% set ns.l = ns.l + [state_attr(e, 'friendly_name') | default(e, true)
-                                    ~ ' – ' ~ states(e) ~ ' aanbieding(en)'] %}
-            {% endfor %}
-            {{ ns.l }}
+            {% from 'promoties.jinja' import lidl_producten %}
+            {{ lidl_producten() | from_json }}
 
 automation:
   - id: promoties_nieuw_in_promo

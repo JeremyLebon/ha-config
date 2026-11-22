@@ -43,8 +43,6 @@ calendar.afvalophaling:               # calendar.recycle_... of je iCal-kalender
 # --- Gezin ---------------------------------------------------------------------
 calendar.smartschool:                 # calendar.smartschool (Remote Calendar)
 sensor.nmbs_trein:                    # sensor.kortrijk_gent_sint_pieters
-sensor.lidl_koffie:                   # trefwoordsensor uit Lidl Weekly Offers
-sensor.lidl_luiers:                   # trefwoordsensor uit Lidl Weekly Offers
 
 # --- Info / weer ----------------------------------------------------------------
 weather.thuis:                        # weather.forecast_home of weather.<kmi>

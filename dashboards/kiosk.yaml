@@ -284,6 +284,8 @@ views:
             grid_options:
               columns: full
             entities:
+              - entity: input_text.lidl_trefwoorden
+                name: Lidl trefwoorden
               - entity: input_text.colruyt_winkel_id
                 name: Colruyt winkel-id
 
