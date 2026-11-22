@@ -3,27 +3,48 @@
 {#- Lidl: aanbiedingen van je winkel die een trefwoord bevatten (in titel of merk).
     Geen trefwoorden ingevuld = alle aanbiedingen.
     Bron: attribuut 'discounts' van de Lidl Weekly Offers-sensoren, met o.a.
-    title, brand, price (promolabel zoals "-39%", "1 + 1", "-5 €"), end_date.
-    Geeft een JSON-lijst terug: ["Merk Titel – -39% (t/m 23/11)", ...]
+    title, brand, price (promolabel zoals "-39%", "1 + 1", "-5 €"), end_date, image_url.
     LIDL_SENSOREN: pas aan als je van winkel verandert. -#}
-{%- macro lidl_producten() -%}
+
+{#- lidl_items(): JSON-lijst van objecten voor het dashboard:
+    {titel, merk, label, tot, img, preview} -#}
+{%- macro lidl_items() -%}
   {%- set bronnen = ['sensor.lidl_kortrijk_engelse_wandeling_offers',
                      'sensor.lidl_kortrijk_engelse_wandeling_offers_preview'] -%}
   {%- set kw = (states('input_text.lidl_trefwoorden') | lower).split(',')
                | map('trim') | reject('eq', '') | reject('eq', 'unknown') | list -%}
-  {%- set ns = namespace(l=[]) -%}
+  {%- set ns = namespace(l=[], ids=[]) -%}
   {%- for st in expand(bronnen) -%}
-      {%- for i in st.attributes.get('discounts') or [] if i is mapping -%}
-        {%- set titel = (i.get('title') or '') | string | trim -%}
-        {%- set merk = (i.get('brand') or '') | string | trim -%}
-        {%- set tekst = ((merk ~ ' ') if merk else '') ~ titel -%}
-        {%- if titel and (kw | count == 0 or kw | select('in', tekst | lower) | list | count > 0) -%}
-          {%- set label = (i.get('price') or '') | string | trim -%}
-          {%- set eind = i.get('end_date') -%}
-          {%- set tot = (' (t/m ' ~ (eind | as_datetime).strftime('%d/%m') ~ ')') if eind else '' -%}
-          {%- set ns.l = ns.l + [tekst ~ ((' – ' ~ label) if label and label != '-' else '') ~ tot] -%}
-        {%- endif -%}
-      {%- endfor -%}
+    {%- for i in st.attributes.get('discounts') or [] if i is mapping -%}
+      {%- set titel = (i.get('title') or '') | string | trim -%}
+      {%- set merk = (i.get('brand') or '') | string | trim -%}
+      {%- set tekst = ((merk ~ ' ') if merk else '') ~ titel -%}
+      {%- set sleutel = i.get('id') or tekst -%}
+      {%- if titel and sleutel not in ns.ids
+             and (kw | count == 0 or kw | select('in', tekst | lower) | list | count > 0) -%}
+        {%- set label = (i.get('price') or '') | string | trim -%}
+        {%- set eind = i.get('end_date') -%}
+        {%- set ns.ids = ns.ids + [sleutel] -%}
+        {%- set ns.l = ns.l + [{
+              'titel': titel,
+              'merk': merk if merk | lower not in titel | lower else '',
+              'label': label if label != '-' else '',
+              'tot': (eind | as_datetime).strftime('%d/%m') if eind else '',
+              'img': i.get('image_url') or '',
+              'preview': 'preview' in st.entity_id }] -%}
+      {%- endif -%}
+    {%- endfor -%}
   {%- endfor -%}
-  {{- ns.l | unique | list | to_json -}}
+  {{- ns.l | to_json -}}
+{%- endmacro -%}
+
+{#- lidl_producten(): JSON-lijst van tekstregels, voor meldingen: ["Merk Titel – -39% (t/m 23/11)", ...] -#}
+{%- macro lidl_producten() -%}
+  {%- set ns = namespace(l=[]) -%}
+  {%- for i in lidl_items() | from_json -%}
+    {%- set ns.l = ns.l + [((i.merk ~ ' ') if i.merk else '') ~ i.titel
+                           ~ ((' – ' ~ i.label) if i.label else '')
+                           ~ ((' (t/m ' ~ i.tot ~ ')') if i.tot else '')] -%}
+  {%- endfor -%}
+  {{- ns.l | to_json -}}
 {%- endmacro -%}

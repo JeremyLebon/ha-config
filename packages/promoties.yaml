@@ -123,6 +123,9 @@ template:
           producten: >
             {% from 'promoties.jinja' import lidl_producten %}
             {{ lidl_producten() | from_json }}
+          items: >
+            {% from 'promoties.jinja' import lidl_items %}
+            {{ lidl_items() | from_json }}
 
 automation:
   - id: promoties_nieuw_in_promo

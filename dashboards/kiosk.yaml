@@ -24,7 +24,7 @@ views:
             icon: mdi:calendar-today
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
@@ -34,7 +34,7 @@ views:
             icon: mdi:lightning-bolt
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
@@ -44,11 +44,21 @@ views:
             icon: mdi:information-outline
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
               navigation_path: /dashboard-kiosk/info
+          - type: button
+            name: Promo
+            icon: mdi:cart-percent
+            show_state: false
+            grid_options:
+              columns: 3
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/promo
       - type: grid
         cards:
           - type: custom:clock-weather-card
@@ -182,7 +192,7 @@ views:
             icon: mdi:calendar-today
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
@@ -192,7 +202,7 @@ views:
             icon: mdi:lightning-bolt
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
@@ -202,11 +212,21 @@ views:
             icon: mdi:information-outline
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
               navigation_path: /dashboard-kiosk/info
+          - type: button
+            name: Promo
+            icon: mdi:cart-percent
+            show_state: false
+            grid_options:
+              columns: 3
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/promo
       - type: grid
         cards:
           - type: custom:power-flow-card-plus
@@ -304,7 +324,7 @@ views:
             icon: mdi:calendar-today
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
@@ -314,7 +334,7 @@ views:
             icon: mdi:lightning-bolt
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
@@ -324,11 +344,21 @@ views:
             icon: mdi:information-outline
             show_state: false
             grid_options:
-              columns: 4
+              columns: 3
               rows: 1
             tap_action:
               action: navigate
               navigation_path: /dashboard-kiosk/info
+          - type: button
+            name: Promo
+            icon: mdi:cart-percent
+            show_state: false
+            grid_options:
+              columns: 3
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/promo
       - type: grid
         cards:
           - type: heading
@@ -361,44 +391,6 @@ views:
       - type: grid
         cards:
           - type: heading
-            heading: Promoties
-          - type: tile
-            entity: sensor.lidl_in_promo
-            name: Lidl
-          - type: tile
-            entity: sensor.colruyt_in_promo
-            name: Colruyt
-          - type: markdown
-            grid_options:
-              columns: full
-            content: |
-              {% set lidl = state_attr('sensor.lidl_in_promo', 'producten') or [] %}
-              {% set col = state_attr('sensor.colruyt_in_promo', 'producten') or [] %}
-              **Lidl**
-              {% for p in lidl %}
-              - {{ p }}
-              {% else %}
-              - geen aanbiedingen gevonden
-              {% endfor %}
-
-              **Colruyt**
-              {% for p in col %}
-              - {{ p }}
-              {% else %}
-              - niets van je lijst
-              {% endfor %}
-          - type: entities
-            grid_options:
-              columns: full
-            entities:
-              - entity: input_text.lidl_trefwoorden
-                name: Lidl trefwoorden
-              - entity: input_text.colruyt_winkel_id
-                name: Colruyt winkel-id
-
-      - type: grid
-        cards:
-          - type: heading
             heading: Toestellen
           - type: tile
             entity: input_boolean.wasmachine_draait
@@ -423,3 +415,103 @@ views:
           - type: tile
             entity: sensor.watchman_ontbrekende_entiteiten
             name: Ontbrekende entiteiten
+
+  # ---------------------------------------------------------------- PROMO
+  - title: Promo
+    path: promo
+    icon: mdi:cart-percent
+    type: sections
+    max_columns: 3
+    sections:
+      - type: grid
+        column_span: 3
+        cards:
+          - type: button
+            name: Vandaag
+            icon: mdi:calendar-today
+            show_state: false
+            grid_options:
+              columns: 3
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/vandaag
+          - type: button
+            name: Energie
+            icon: mdi:lightning-bolt
+            show_state: false
+            grid_options:
+              columns: 3
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/energie
+          - type: button
+            name: Info
+            icon: mdi:information-outline
+            show_state: false
+            grid_options:
+              columns: 3
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/info
+          - type: button
+            name: Promo
+            icon: mdi:cart-percent
+            show_state: false
+            grid_options:
+              columns: 3
+              rows: 1
+            tap_action:
+              action: navigate
+              navigation_path: /dashboard-kiosk/promo
+      - type: grid
+        column_span: 2
+        cards:
+          - type: markdown
+            grid_options:
+              columns: full
+            content: >
+              {% set items = state_attr('sensor.lidl_in_promo', 'items') or [] %}
+              {% set kw = states('input_text.lidl_trefwoorden') | trim %}
+              <h3><ha-icon icon="mdi:cart-percent"></ha-icon> Lidl
+              <small>· {{ items | count }} {{ 'treffers' if kw not in ['', 'unknown'] else 'aanbiedingen' }}</small></h3>
+              {% if items | count == 0 %}
+              <p>Geen aanbiedingen{{ ' voor je trefwoorden' if kw not in ['', 'unknown'] }}.</p>
+              {% else %}
+              <table width="100%">
+              {% for i in items %}
+              <tr>
+              <td width="64">{% if i.img %}<img src="{{ i.img }}" width="56">{% endif %}</td>
+              <td><b>{{ i.titel }}</b><br>
+              <small>{{ i.merk ~ ' · ' if i.merk }}{{ 't/m ' ~ i.tot if i.tot }}{{ ' · volgende week' if i.preview }}</small></td>
+              <td align="right" width="80"><b>{{ i.label }}</b></td>
+              </tr>
+              {% endfor %}
+              </table>
+              {% endif %}
+
+      - type: grid
+        cards:
+          - type: markdown
+            grid_options:
+              columns: full
+            content: >
+              {% set col = state_attr('sensor.colruyt_in_promo', 'producten') or [] %}
+              <h3><ha-icon icon="mdi:store"></ha-icon> Colruyt
+              <small>· {{ col | count }} in promo</small></h3>
+              {% for p in col %}
+              <p><ha-icon icon="mdi:sale"></ha-icon> {{ p }}</p>
+              {% else %}
+              <p>Niets van je watchlist in promo.</p>
+              {% endfor %}
+          - type: entities
+            title: Instellingen
+            grid_options:
+              columns: full
+            entities:
+              - entity: input_text.lidl_trefwoorden
+                name: Lidl trefwoorden
+              - entity: input_text.colruyt_winkel_id
+                name: Colruyt winkel-id
