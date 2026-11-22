@@ -1,7 +1,9 @@
 {#- Promoties – herbruikbare macro's (geïmporteerd in packages/promoties.yaml) -#}
 
-{#- Lidl: producten uit de aanbiedingen van je winkel die een trefwoord bevatten.
-    Geeft een JSON-lijst terug: ["Naam – € prijs", ...]
+{#- Lidl: aanbiedingen van je winkel die een trefwoord bevatten (in titel of merk).
+    Bron: attribuut 'discounts' van de Lidl Weekly Offers-sensoren, met o.a.
+    title, brand, price (promolabel zoals "-39%", "1 + 1", "-5 €"), end_date.
+    Geeft een JSON-lijst terug: ["Merk Titel – -39% (t/m 23/11)", ...]
     LIDL_SENSOREN: pas aan als je van winkel verandert. -#}
 {%- macro lidl_producten() -%}
   {%- set bronnen = ['sensor.lidl_kortrijk_engelse_wandeling_offers',
@@ -11,16 +13,16 @@
   {%- set ns = namespace(l=[]) -%}
   {%- if kw | count > 0 -%}
     {%- for st in expand(bronnen) -%}
-      {%- for waarde in st.attributes.values() if waarde is list -%}
-        {%- for i in waarde if i is mapping -%}
-          {%- set naam = (i.get('title') or i.get('name') or i.get('fullTitle')
-                          or i.get('product') or i.get('description') or '') | string -%}
-          {%- if naam and kw | select('in', naam | lower) | list | count > 0 -%}
-            {%- set p = i.get('price') -%}
-            {%- set p = p.get('price', p.get('value')) if p is mapping else p -%}
-            {%- set ns.l = ns.l + [naam ~ (' – € ' ~ p if p not in [none, ''] else '')] -%}
-          {%- endif -%}
-        {%- endfor -%}
+      {%- for i in st.attributes.get('discounts') or [] if i is mapping -%}
+        {%- set titel = (i.get('title') or '') | string | trim -%}
+        {%- set merk = (i.get('brand') or '') | string | trim -%}
+        {%- set tekst = ((merk ~ ' ') if merk else '') ~ titel -%}
+        {%- if titel and kw | select('in', tekst | lower) | list | count > 0 -%}
+          {%- set label = (i.get('price') or '') | string | trim -%}
+          {%- set eind = i.get('end_date') -%}
+          {%- set tot = (' (t/m ' ~ (eind | as_datetime).strftime('%d/%m') ~ ')') if eind else '' -%}
+          {%- set ns.l = ns.l + [tekst ~ ((' – ' ~ label) if label and label != '-' else '') ~ tot] -%}
+        {%- endif -%}
       {%- endfor -%}
     {%- endfor -%}
   {%- endif -%}
