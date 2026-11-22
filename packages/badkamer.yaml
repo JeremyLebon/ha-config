@@ -65,6 +65,10 @@ timer:
 
 template:
   - binary_sensor:
+      # Voor het dashboard: badkamerkaarten pas tonen als het toestel gekoppeld is
+      - name: Badkamer beschikbaar
+        unique_id: badkamer_beschikbaar
+        state: "{{ states('climate.badkamer') not in ['unavailable', 'unknown'] }}"
       - name: Badkamer verwarming aan
         unique_id: badkamer_verwarming_aan
         device_class: heat

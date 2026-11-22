@@ -92,12 +92,48 @@ views:
 
       - type: grid
         cards:
+          - type: heading
+            heading: Verwarming
+            icon: mdi:radiator
           - type: thermostat
             entity: climate.my_home_zone_thuis_circuit_0_climate
             name: Vaillant
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.lebonjeremy_hotmail_com_my_home_outdoor_temperature
+            name: Buiten
+          - type: tile
+            entity: sensor.my_home_zone_thuis_circuit_0_current_temperature
+            name: Binnen
+          - type: tile
+            entity: water_heater.my_home_domestic_hot_water_0
+            name: Warm water
+          - type: tile
+            entity: sensor.lebonjeremy_hotmail_com_my_home_domestic_hot_water_0_tank_temperature
+            name: Boiler
+          - type: tile
+            entity: sensor.lebonjeremy_hotmail_com_my_home_system_water_pressure
+            name: Waterdruk
+          - type: tile
+            entity: switch.lebonjeremy_hotmail_com_my_home_domestic_hot_water_0_boost
+            name: Warm water boost
+
+      # Pelletkachel: verschijnt pas als de Austroflamm-integratie gekoppeld is
+      - type: grid
+        visibility:
+          - condition: state
+            entity: binary_sensor.kachel_beschikbaar
+            state: "on"
+        cards:
+          - type: heading
+            heading: Pelletkachel
+            icon: mdi:fireplace
           - type: thermostat
             entity: climate.pelletkachel
             name: Kachel
+            grid_options:
+              columns: full
           - type: tile
             entity: sensor.pellets_resterend
             name: Pellets
@@ -110,8 +146,16 @@ views:
               target:
                 entity_id: input_button.pellets_bijgevuld
 
+      # Badkamer: verschijnt pas als de Tuya-verwarming gekoppeld is
       - type: grid
+        visibility:
+          - condition: state
+            entity: binary_sensor.badkamer_beschikbaar
+            state: "on"
         cards:
+          - type: heading
+            heading: Badkamer
+            icon: mdi:shower
           - type: thermostat
             entity: climate.badkamer
             name: Badkamer

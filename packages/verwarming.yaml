@@ -61,6 +61,10 @@ input_button:
 
 template:
   - binary_sensor:
+      # Voor het dashboard: kachelkaarten pas tonen als de kachel gekoppeld is
+      - name: Kachel beschikbaar
+        unique_id: kachel_beschikbaar
+        state: "{{ states('climate.pelletkachel') not in ['unavailable', 'unknown'] }}"
       - name: Kachel brandt
         unique_id: kachel_brandt
         device_class: heat
