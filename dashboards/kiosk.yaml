@@ -271,7 +271,7 @@ views:
               {% for p in lidl %}
               - {{ p }}
               {% else %}
-              - niets van je lijst
+              - geen aanbiedingen gevonden
               {% endfor %}
 
               **Colruyt**

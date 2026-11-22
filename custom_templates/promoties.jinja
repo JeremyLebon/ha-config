@@ -1,6 +1,7 @@
 {#- Promoties – herbruikbare macro's (geïmporteerd in packages/promoties.yaml) -#}
 
 {#- Lidl: aanbiedingen van je winkel die een trefwoord bevatten (in titel of merk).
+    Geen trefwoorden ingevuld = alle aanbiedingen.
     Bron: attribuut 'discounts' van de Lidl Weekly Offers-sensoren, met o.a.
     title, brand, price (promolabel zoals "-39%", "1 + 1", "-5 €"), end_date.
     Geeft een JSON-lijst terug: ["Merk Titel – -39% (t/m 23/11)", ...]
@@ -11,20 +12,18 @@
   {%- set kw = (states('input_text.lidl_trefwoorden') | lower).split(',')
                | map('trim') | reject('eq', '') | reject('eq', 'unknown') | list -%}
   {%- set ns = namespace(l=[]) -%}
-  {%- if kw | count > 0 -%}
-    {%- for st in expand(bronnen) -%}
+  {%- for st in expand(bronnen) -%}
       {%- for i in st.attributes.get('discounts') or [] if i is mapping -%}
         {%- set titel = (i.get('title') or '') | string | trim -%}
         {%- set merk = (i.get('brand') or '') | string | trim -%}
         {%- set tekst = ((merk ~ ' ') if merk else '') ~ titel -%}
-        {%- if titel and kw | select('in', tekst | lower) | list | count > 0 -%}
+        {%- if titel and (kw | count == 0 or kw | select('in', tekst | lower) | list | count > 0) -%}
           {%- set label = (i.get('price') or '') | string | trim -%}
           {%- set eind = i.get('end_date') -%}
           {%- set tot = (' (t/m ' ~ (eind | as_datetime).strftime('%d/%m') ~ ')') if eind else '' -%}
           {%- set ns.l = ns.l + [tekst ~ ((' – ' ~ label) if label and label != '-' else '') ~ tot] -%}
         {%- endif -%}
       {%- endfor -%}
-    {%- endfor -%}
-  {%- endif -%}
+  {%- endfor -%}
   {{- ns.l | unique | list | to_json -}}
 {%- endmacro -%}
