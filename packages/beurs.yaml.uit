@@ -8,6 +8,7 @@
 # Per symbool maakt de integratie sensor.yahoofinance_<symbool>, bv.
 #   ^BFX      -> sensor.yahoofinance_bfx        (BEL20)
 #   IWDA.AS   -> sensor.yahoofinance_iwda_as    (iShares MSCI World, Euronext Amsterdam)
+#   NVDA      -> sensor.yahoofinance_nvda       (Nvidia, Nasdaq, USD)
 # Attributen o.a. regularMarketChangePercent (dagverandering in %) en currencySymbol.
 # Symbolen opzoeken: finance.yahoo.com (Brussel = .BR, Amsterdam = .AS, Parijs = .PA).
 
@@ -19,8 +20,10 @@ yahoofinance:
     - IWDA.AS # MSCI World ETF
     - ^STOXX50E # Euro Stoxx 50
     - EURUSD=X # euro/dollar
+    - NVDA # Nvidia (Nasdaq, in USD)
 
 automation:
+  # Drempel: 3 % voor indexen, 5 % voor Nvidia (individueel aandeel beweegt meer)
   - id: beurs_grote_beweging
     alias: Beurs – grote dagbeweging
     mode: queued
@@ -33,11 +36,18 @@ automation:
         value_template: >
           {{ state_attr('sensor.yahoofinance_iwda_as', 'regularMarketChangePercent') | float(0) | abs >= 3 }}
         id: msci
+      - trigger: template
+        value_template: >
+          {{ state_attr('sensor.yahoofinance_nvda', 'regularMarketChangePercent') | float(0) | abs >= 5 }}
+        id: nvda
     actions:
       - variables:
-          s: "{{ 'sensor.yahoofinance_bfx' if trigger.id == 'bel20' else 'sensor.yahoofinance_iwda_as' }}"
+          s: >
+            {{ {'bel20': 'sensor.yahoofinance_bfx', 'msci': 'sensor.yahoofinance_iwda_as',
+                'nvda': 'sensor.yahoofinance_nvda'}[trigger.id] }}
+          naam: "{{ {'bel20': 'BEL20', 'msci': 'MSCI World', 'nvda': 'Nvidia'}[trigger.id] }}"
           pct: "{{ state_attr(s, 'regularMarketChangePercent') | float(0) | round(1) }}"
       - action: notify.mobile_app_gsm
         data:
-          title: "📈 {{ 'BEL20' if trigger.id == 'bel20' else 'MSCI World' }} {{ '+' if pct > 0 else '' }}{{ pct }} %"
+          title: "📈 {{ naam }} {{ '+' if pct > 0 else '' }}{{ pct }} %"
           message: "Koers nu {{ states(s) }}."

@@ -250,6 +250,14 @@ views:
             points_per_hour: 0.5
             grid_options:
               columns: full
+          - type: custom:mini-graph-card
+            name: Nvidia
+            entities:
+              - sensor.yahoofinance_nvda
+            hours_to_show: 168
+            points_per_hour: 0.5
+            grid_options:
+              columns: full
 
       - type: grid
         cards:
