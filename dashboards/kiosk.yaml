@@ -158,6 +158,32 @@ views:
 
       - type: grid
         cards:
+          - type: markdown
+            title: Nieuws
+            grid_options:
+              columns: full
+            content: >
+              {{ state_attr('sensor.nieuws_samenvatting', 'tekst')
+                 or 'Nog geen samenvatting. Tik op Samenvatten.' }}
+          - type: button
+            name: Samenvatten
+            icon: mdi:text-box-outline
+            tap_action:
+              action: perform-action
+              perform_action: script.nieuws_samenvatting
+              data:
+                voorlezen: false
+          - type: button
+            name: Voorlezen
+            icon: mdi:account-voice
+            tap_action:
+              action: perform-action
+              perform_action: script.nieuws_samenvatting
+              data:
+                voorlezen: true
+
+      - type: grid
+        cards:
           - type: calendar
             title: Smartschool
             initial_view: listWeek

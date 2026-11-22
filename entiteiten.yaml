@@ -50,6 +50,11 @@ camera.buienradar:                    # camera.buienradar
 sensor.beurs_bel20:                   # sensor.yahoofinance_bfx
 sensor.beurs_msci_world:              # sensor.yahoofinance_iwda_as
 
+# --- Nieuws: AI-taak + TTS + speaker ----------------------------------------------
+ai_task.samenvatter:                  # ai_task.claude_ai_task (Anthropic) of andere AI Task-entiteit
+tts.piper:                            # tts.piper of tts.home_assistant_cloud
+media_player.speaker:                 # media_player.<speaker die TTS kan afspelen>
+
 # --- Onderhoud: Watchman + System Monitor ---------------------------------------
 sensor.watchman_ontbrekende_entiteiten: # sensor.watchman_missing_entities
 sensor.watchman_ontbrekende_acties:   # sensor.watchman_missing_actions

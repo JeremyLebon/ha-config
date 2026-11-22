@@ -1,0 +1,138 @@
+# =============================================================================
+# NIEUWS – VRT NWS-feed -> samenvatting door een AI-taak (Claude) -> voorlezen via TTS
+# =============================================================================
+# Benodigd:
+#   - Anthropic-integratie (officieel) met een AI Task-entiteit  -> ai_task.samenvatter
+#     (of een andere AI Task-provider: OpenAI, Google, Ollama lokaal, ...)
+#   - TTS: Piper (add-on + Wyoming, lokaal) met een Vlaamse stem (nl_BE-nathalie of nl_BE-rdh),
+#     of Home Assistant Cloud (nl-BE)                              -> tts.piper
+#   - Een speaker als media_player die TTS kan afspelen (Cast/Sonos/ESPHome-satelliet, ...)
+#                                                                  -> media_player.speaker
+#
+# De feed van VRT NWS is Atom (feed/entry). De RESTful-integratie zet XML automatisch om
+# naar JSON; de berichten komen in het attribuut 'entry' van sensor.nieuws_vrt.
+
+input_boolean:
+  nieuws_ochtend:
+    name: Nieuws 's ochtends voorlezen
+    icon: mdi:newspaper-variant-outline
+
+input_datetime:
+  nieuws_ochtend_tijd:
+    name: Tijd ochtendnieuws
+    has_date: false
+    has_time: true
+    initial: "07:15:00"
+
+recorder:
+  exclude:
+    entities:
+      - sensor.nieuws_vrt # groot attribuut, hoeft niet in de database
+
+rest:
+  - resource: https://www.vrt.be/vrtnws/nl.rss.articles.xml
+    scan_interval: 1800
+    timeout: 20
+    sensor:
+      - name: Nieuws VRT
+        unique_id: nieuws_vrt
+        icon: mdi:newspaper
+        value_template: "{{ value_json.feed.entry | default([]) | count }}"
+        json_attributes_path: "$.feed"
+        json_attributes:
+          - entry
+
+template:
+  # Laatste samenvatting bewaren voor het dashboard
+  - triggers:
+      - trigger: event
+        event_type: nieuws_samenvatting
+    sensor:
+      - name: Nieuws samenvatting
+        unique_id: nieuws_samenvatting
+        icon: mdi:text-box-outline
+        device_class: timestamp
+        state: "{{ now().isoformat() }}"
+        attributes:
+          tekst: "{{ trigger.event.data.tekst }}"
+
+script:
+  nieuws_samenvatting:
+    alias: Nieuws – samenvatting maken (en voorlezen)
+    icon: mdi:newspaper-variant
+    mode: single
+    fields:
+      voorlezen:
+        name: Voorlezen
+        default: false
+        selector:
+          boolean:
+      aantal:
+        name: Aantal berichten
+        default: 15
+        selector:
+          number:
+            min: 5
+            max: 30
+    sequence:
+      - variables:
+          koppen: >
+            {% set ns = namespace(l=[]) %}
+            {% set entries = state_attr('sensor.nieuws_vrt', 'entry') or [] %}
+            {% if entries is mapping %}{% set entries = [entries] %}{% endif %}
+            {% for e in entries[:(aantal | default(15) | int)] %}
+              {% set t = e.get('title', '') %}
+              {% set t = t['#text'] if t is mapping else t %}
+              {% set s = e.get('summary', '') %}
+              {% set s = s['#text'] if s is mapping else (s or '') %}
+              {% set ns.l = ns.l + ['- ' ~ t ~ ': ' ~ (s | striptags | truncate(300))] %}
+            {% endfor %}
+            {{ ns.l | join('\n') }}
+      - condition: template
+        value_template: "{{ koppen | length > 0 }}"
+      - action: ai_task.generate_data
+        data:
+          task_name: nieuwssamenvatting
+          entity_id: ai_task.samenvatter
+          instructions: >
+            Je bent de nieuwslezer van een Vlaams gezin. Vat de belangrijkste berichten
+            hieronder samen als een kort radiobulletin in vlot, gesproken Nederlands:
+            maximaal zes zinnen, eerst het belangrijkste binnenlandse nieuws, dan buitenland,
+            sluit af met één luchtig bericht als dat er is. Geen opsommingstekens, geen
+            markdown, geen koppen, geen bronvermelding, schrijf getallen zoals je ze uitspreekt.
+
+            Berichten van VRT NWS:
+            {{ koppen }}
+        response_variable: resultaat
+      - event: nieuws_samenvatting
+        event_data:
+          tekst: "{{ resultaat.data }}"
+      - if:
+          - condition: template
+            value_template: "{{ voorlezen | default(false) }}"
+        then:
+          - action: tts.speak
+            target:
+              entity_id: tts.piper
+            data:
+              media_player_entity_id: media_player.speaker
+              message: "{{ resultaat.data }}"
+              cache: false
+
+automation:
+  - id: nieuws_ochtend
+    alias: Nieuws – ochtendbulletin voorlezen
+    mode: single
+    triggers:
+      - trigger: time
+        at: input_datetime.nieuws_ochtend_tijd
+    conditions:
+      - condition: state
+        entity_id: input_boolean.nieuws_ochtend
+        state: "on"
+      - condition: time
+        weekday: [mon, tue, wed, thu, fri]
+    actions:
+      - action: script.nieuws_samenvatting
+        data:
+          voorlezen: true
