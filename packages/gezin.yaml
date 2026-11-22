@@ -1,12 +1,10 @@
 # =============================================================================
-# GEZIN – Smartschool, NMBS, Lidl-promoties
+# GEZIN – Smartschool, NMBS  (promoties: zie promoties.yaml)
 # =============================================================================
 #   calendar.smartschool   Smartschool-schoolkalender (iCal-export via Remote Calendar,
 #                          of de smartschool_ha custom integratie)
 #   sensor.nmbs_trein      NMBS-traject (officieel). Attributen o.a.:
 #                          delay_minutes, departure_minutes, platform_departing, canceled
-#   sensor.lidl_koffie     Lidl Weekly Offers (HACS, FaserF/ha-lidl) – trefwoordfilter-sensor
-#   sensor.lidl_luiers     idem, tweede trefwoord (voeg er zo veel toe als je wil)
 
 input_number:
   nmbs_vertraging_melding:
@@ -100,24 +98,3 @@ automation:
             {% endif %}
       - delay:
           minutes: 15
-
-  - id: gezin_lidl_promo
-    alias: Gezin – Lidl-promotie op trefwoord
-    mode: queued
-    triggers:
-      - trigger: state
-        entity_id:
-          - sensor.lidl_koffie
-          - sensor.lidl_luiers
-    conditions:
-      - condition: template
-        value_template: >
-          {{ trigger.to_state.state | int(0) > 0 and
-             trigger.from_state is not none and
-             trigger.from_state.state | int(0) == 0 }}
-    actions:
-      - action: notify.mobile_app_gsm
-        data:
-          title: "🛒 Lidl-promo"
-          message: >
-            {{ trigger.to_state.name }}: {{ trigger.to_state.state }} aanbieding(en) deze week.

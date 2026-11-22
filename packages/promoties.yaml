@@ -1,0 +1,158 @@
+# =============================================================================
+# PROMOTIES – Lidl (HACS-integratie) + Colruyt (RESTful, ingebouwd)
+# =============================================================================
+#
+# LIDL – integratie "Lidl Weekly Offers" (HACS, FaserF/ha-lidl), login met Lidl Plus.
+#   Maak in de opties van de integratie een trefwoordfilter per product (koffie, luiers, ...).
+#   Elke filter wordt een sensor (waarde = aantal aanbiedingen). Koppel ze in entiteiten.yaml
+#   en zet ze in de lijst LIDL_SENSOREN hieronder (template "Lidl in promo").
+#
+# COLRUYT – openbaar productendpoint van colruyt.be (geen officiële API, kan wijzigen):
+#   https://ecgproductmw.colruyt.be/ecgproductmw/v2/nl/products/<product-id>?clientCode=clp&placeId=<winkel-id>
+#   Antwoord bevat o.a. price.basicPrice, price.isRedPrice, price.quantityPrice, inPromo.
+#
+#   Winkel-id instellen: input_text.colruyt_winkel_id (via het dashboard of Instellingen > Helpers).
+#   Product-id vinden: open het product op colruyt.be, F12 > Netwerk, filter op "ecgproductmw";
+#   het getal na /products/ is het product-id (≠ het nummer in de product-URL).
+#
+#   Product toevoegen = één blok onder `rest:` kopiëren en 3 dingen aanpassen:
+#     - het product-id in resource_template
+#     - name / unique_id van de sensor   ("Colruyt <Naam>")
+#     - name / unique_id van de binary_sensor ("Colruyt <Naam> promo")
+#   De overzichtssensor en de meldingen pikken nieuwe producten automatisch op
+#   (alles wat binary_sensor.colruyt_..._promo heet).
+
+input_text:
+  colruyt_winkel_id:
+    name: Colruyt winkel-id (placeId)
+    icon: mdi:store
+    max: 10
+    pattern: "[0-9]*"
+
+rest:
+  # ---- Product 1: Stella Artois bak (product-id 369, voorbeeld uit colruytPriceChecker) ----
+  - resource_template: >-
+      https://ecgproductmw.colruyt.be/ecgproductmw/v2/nl/products/369?clientCode=clp&placeId={{
+      states('input_text.colruyt_winkel_id') if has_value('input_text.colruyt_winkel_id')
+      and states('input_text.colruyt_winkel_id') | length > 0 else '620' }}
+    scan_interval: 21600 # 6 uur
+    timeout: 20
+    headers:
+      User-Agent: Mozilla/5.0 (X11; Linux aarch64) HomeAssistant
+      Accept: application/json
+    sensor:
+      - name: Colruyt Stella
+        unique_id: colruyt_stella
+        icon: mdi:glass-mug-variant
+        unit_of_measurement: "€"
+        value_template: "{{ (value_json.price | default({})).get('basicPrice') }}"
+        json_attributes_path: "$.price"
+        json_attributes:
+          - isRedPrice
+          - quantityPrice
+    binary_sensor:
+      - name: Colruyt Stella promo
+        unique_id: colruyt_stella_promo
+        icon: mdi:sale
+        value_template: >
+          {% set p = value_json.price | default({}) %}
+          {{ value_json.inPromo | default(false) or p.get('isRedPrice', false)
+             or (p.get('quantityPrice') not in [none, false, 0, '']) }}
+
+  # ---- Product 2: kopieer het blok hierboven -------------------------------------------
+  # - resource_template: >-
+  #     https://ecgproductmw.colruyt.be/ecgproductmw/v2/nl/products/<ID>?clientCode=clp&placeId={{
+  #     states('input_text.colruyt_winkel_id') if has_value('input_text.colruyt_winkel_id')
+  #     and states('input_text.colruyt_winkel_id') | length > 0 else '620' }}
+  #   scan_interval: 21600
+  #   timeout: 20
+  #   headers:
+  #     User-Agent: Mozilla/5.0 (X11; Linux aarch64) HomeAssistant
+  #     Accept: application/json
+  #   sensor:
+  #     - name: Colruyt Koffie
+  #       unique_id: colruyt_koffie
+  #       unit_of_measurement: "€"
+  #       value_template: "{{ (value_json.price | default({})).get('basicPrice') }}"
+  #       json_attributes_path: "$.price"
+  #       json_attributes: [isRedPrice, quantityPrice]
+  #   binary_sensor:
+  #     - name: Colruyt Koffie promo
+  #       unique_id: colruyt_koffie_promo
+  #       value_template: >
+  #         {% set p = value_json.price | default({}) %}
+  #         {{ value_json.inPromo | default(false) or p.get('isRedPrice', false)
+  #            or (p.get('quantityPrice') not in [none, false, 0, '']) }}
+
+template:
+  - sensor:
+      - name: Colruyt in promo
+        unique_id: colruyt_in_promo
+        icon: mdi:cart-percent
+        state: >
+          {{ states.binary_sensor
+             | selectattr('entity_id', 'match', 'binary_sensor[.]colruyt_.*_promo$')
+             | selectattr('state', 'eq', 'on') | list | count }}
+        attributes:
+          producten: >
+            {% set ns = namespace(l=[]) %}
+            {% for b in states.binary_sensor
+                 | selectattr('entity_id', 'match', 'binary_sensor[.]colruyt_.*_promo$')
+                 | selectattr('state', 'eq', 'on') %}
+              {% set s = b.entity_id | replace('binary_sensor.', 'sensor.') | regex_replace('_promo$', '') %}
+              {% set naam = b.name | regex_replace(' promo$', '') | regex_replace('^Colruyt ', '') %}
+              {% set extra = (' (rode prijs)' if state_attr(s, 'isRedPrice') else '')
+                           ~ (' (volumekorting)' if state_attr(s, 'quantityPrice') else '') %}
+              {% set ns.l = ns.l + [naam ~ ' – € ' ~ states(s) ~ extra] %}
+            {% endfor %}
+            {{ ns.l }}
+
+      - name: Lidl in promo
+        unique_id: lidl_in_promo
+        icon: mdi:cart-percent
+        # LIDL_SENSOREN: vul hier al je Lidl-trefwoordsensoren in
+        state: >
+          {% set lijst = ['sensor.lidl_koffie', 'sensor.lidl_luiers'] %}
+          {{ lijst | map('states') | map('int', 0) | select('gt', 0) | list | count }}
+        attributes:
+          producten: >
+            {% set lijst = ['sensor.lidl_koffie', 'sensor.lidl_luiers'] %}
+            {% set ns = namespace(l=[]) %}
+            {% for e in lijst if states(e) | int(0) > 0 %}
+              {% set ns.l = ns.l + [state_attr(e, 'friendly_name') | default(e, true)
+                                    ~ ' – ' ~ states(e) ~ ' aanbieding(en)'] %}
+            {% endfor %}
+            {{ ns.l }}
+
+automation:
+  - id: promoties_nieuw_in_promo
+    alias: Promoties – nieuw product in promo (Lidl/Colruyt)
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id:
+          - sensor.colruyt_in_promo
+          - sensor.lidl_in_promo
+        attribute: producten
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.from_state is not none and trigger.to_state is not none }}"
+    variables:
+      winkel: "{{ 'Colruyt' if 'colruyt' in trigger.entity_id else 'Lidl' }}"
+      nieuw: >
+        {% set oud = (trigger.from_state.attributes.producten | default([], true))
+                     | map('regex_replace', ' – .*$', '') | list %}
+        {% set ns = namespace(l=[]) %}
+        {% for p in trigger.to_state.attributes.producten | default([], true) %}
+          {% if (p | regex_replace(' – .*$', '')) not in oud %}
+            {% set ns.l = ns.l + [p] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.l }}
+    actions:
+      - condition: template
+        value_template: "{{ nieuw | count > 0 }}"
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🛒 {{ winkel }}: nieuw in promo"
+          message: "{{ nieuw | join('\n') }}"

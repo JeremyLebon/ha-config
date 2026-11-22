@@ -14,7 +14,8 @@ packages/
   prijzen.yaml            ENTSO-E, goedkoop uur, PV-verwachting, batterij laden van net, negatieve prijs
   verwarming.yaml         Vaillant <-> kachel, pelletvoorraad, storingsmelding
   huishouden.yaml         wasmachine/droogkast klaar, afvalophaling
-  gezin.yaml              Smartschool, NMBS-vertraging, Lidl-promoties
+  gezin.yaml              Smartschool, NMBS-vertraging
+  promoties.yaml          Lidl (trefwoorden) + Colruyt (watchlist via REST), melding bij nieuwe promo
   onderhoud.yaml          Watchman, temperatuur en schijf van de Pi
 dashboards/kiosk.yaml     3 views: Energie / Vandaag / Info
 tools/koppel_entiteiten.py
@@ -54,7 +55,8 @@ De configuratie is gevalideerd met `hass --script check_config` (Home Assistant 
 | Weer | **IRM KMI** | HACS | Belgische voorspelling, waarschuwingen, radar |
 | Mobiliteit | **NMBS** | officieel | traject instellen, bv. Kortrijk -> Gent-Sint-Pieters |
 | Gezin | **Remote Calendar** | officieel | iCal-link uit Smartschool (Schoolkalender > Exporteren) |
-| Gezin | **Lidl Weekly Offers** | HACS | Lidl Plus-login, trefwoordfilters (koffie, luiers, ...) |
+| Promoties | **Lidl Weekly Offers** | HACS | Lidl Plus-login, trefwoordfilters (koffie, luiers, ...) |
+| Promoties | Colruyt | ingebouwd (RESTful) | geen installatie; winkel-id en product-id's instellen, zie `promoties.yaml` |
 | Afval | **Recycle!** of iCal | HACS / officieel | moet een `calendar`-entiteit opleveren |
 | Beurs | **Yahoo Finance** | HACS | tickers bv. `^BFX`, `IWDA.AS` |
 
@@ -108,6 +110,17 @@ met het IP-adres van de HA-server.
 
 Het dashboard verbergt de kop- en zijbalk via kiosk-mode. Voeg `?disable_km` toe aan de URL om ze tijdelijk
 terug te zien.
+
+## Colruyt-watchlist
+
+1. Test eerst of het endpoint vanaf je netwerk werkt (Terminal-add-on):
+   `curl -s "https://ecgproductmw.colruyt.be/ecgproductmw/v2/nl/products/369?clientCode=clp&placeId=620" | head -c 400`
+2. Winkel-id: kies je winkel op colruyt.be, F12 > Netwerk, filter op `ecgproductmw` en neem het getal na `placeId=`.
+   Vul het in bij *Colruyt winkel-id* (Info-view van het dashboard).
+3. Product-id: open het product, dezelfde netwerkfilter, het getal na `/products/`.
+4. Per product één `rest:`-blok kopiëren in `promoties.yaml` (voorbeeld en sjabloon staan erin) en de configuratie herladen.
+
+Nieuwe producten verschijnen vanzelf in *Colruyt in promo* en in de meldingen.
 
 ## Hoe de peak shaving werkt
 

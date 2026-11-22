@@ -199,11 +199,36 @@ views:
           - type: heading
             heading: Promoties
           - type: tile
-            entity: sensor.lidl_koffie
-            name: Lidl – koffie
+            entity: sensor.lidl_in_promo
+            name: Lidl
           - type: tile
-            entity: sensor.lidl_luiers
-            name: Lidl – luiers
+            entity: sensor.colruyt_in_promo
+            name: Colruyt
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |
+              {% set lidl = state_attr('sensor.lidl_in_promo', 'producten') or [] %}
+              {% set col = state_attr('sensor.colruyt_in_promo', 'producten') or [] %}
+              **Lidl**
+              {% for p in lidl %}
+              - {{ p }}
+              {% else %}
+              - niets van je lijst
+              {% endfor %}
+
+              **Colruyt**
+              {% for p in col %}
+              - {{ p }}
+              {% else %}
+              - niets van je lijst
+              {% endfor %}
+          - type: entities
+            grid_options:
+              columns: full
+            entities:
+              - entity: input_text.colruyt_winkel_id
+                name: Colruyt winkel-id
 
       - type: grid
         cards:
