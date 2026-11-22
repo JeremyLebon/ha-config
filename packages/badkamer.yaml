@@ -1,0 +1,248 @@
+# =============================================================================
+# BADKAMER – elektrische verwarming (Blumfeldt via Tuya / Smart Life)
+# =============================================================================
+#   climate.badkamer   Tuya-integratie (of Tuya Local)
+#
+# Werking:
+#   - Boost: verwarming X minuten aan via een timer (knop op het dashboard of 's ochtends).
+#   - Ochtendprogramma op weekdagen, alleen als er iemand thuis is.
+#   - Veiligheid: nooit langer dan de maximale looptijd aan, ook niet als hij met de hand
+#     of via de app werd aangezet.
+#   - Capaciteitstarief: dreigt een kwartierpiek, dan pauzeert de verwarming en gaat ze
+#     daarna weer aan zolang de boost loopt.
+#   - Iedereen weg -> uit.
+#
+# De scripts badkamer_verwarming_aan/uit zijn de enige plek met toestelspecifieke acties.
+# Verschijnt je toestel als schakelaar (switch.*) in plaats van climate.*, vervang dan
+# de acties in die twee scripts door switch.turn_on / switch.turn_off.
+
+input_boolean:
+  badkamer_ochtend:
+    name: Badkamer 's ochtends voorverwarmen
+    icon: mdi:weather-sunset-up
+  badkamer_gepauzeerd:
+    name: Badkamer gepauzeerd door piek (intern)
+    icon: mdi:pause-circle-outline
+
+input_datetime:
+  badkamer_ochtend_start:
+    name: Badkamer ochtend start
+    has_date: false
+    has_time: true
+    initial: "06:30:00"
+
+input_number:
+  badkamer_temperatuur:
+    name: Badkamer temperatuur
+    unit_of_measurement: °C
+    min: 15
+    max: 28
+    step: 0.5
+    initial: 22
+    icon: mdi:thermometer
+  badkamer_ochtend_duur:
+    name: Badkamer ochtend duur
+    unit_of_measurement: min
+    min: 15
+    max: 120
+    step: 5
+    initial: 60
+    icon: mdi:timer-outline
+  badkamer_max_looptijd:
+    name: Badkamer maximale looptijd
+    unit_of_measurement: min
+    min: 30
+    max: 240
+    step: 10
+    initial: 120
+    icon: mdi:timer-alert-outline
+
+timer:
+  badkamer:
+    name: Badkamer boost
+    icon: mdi:radiator
+    restore: true
+
+template:
+  - binary_sensor:
+      - name: Badkamer verwarming aan
+        unique_id: badkamer_verwarming_aan
+        device_class: heat
+        state: >
+          {{ states('climate.badkamer') not in ['off', 'unavailable', 'unknown'] }}
+
+script:
+  badkamer_verwarming_aan:
+    alias: Badkamer – verwarming aan
+    icon: mdi:radiator
+    sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: climate.badkamer
+        data:
+          hvac_mode: heat
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.badkamer
+        data:
+          temperature: "{{ states('input_number.badkamer_temperatuur') | float(22) }}"
+
+  badkamer_verwarming_uit:
+    alias: Badkamer – verwarming uit
+    icon: mdi:radiator-off
+    sequence:
+      - action: climate.set_hvac_mode
+        target:
+          entity_id: climate.badkamer
+        data:
+          hvac_mode: "off"
+
+  badkamer_boost:
+    alias: Badkamer – boost
+    icon: mdi:radiator
+    mode: restart
+    fields:
+      minuten:
+        name: Minuten
+        default: 30
+        selector:
+          number:
+            min: 5
+            max: 120
+            step: 5
+    sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.badkamer_gepauzeerd
+      - action: script.badkamer_verwarming_aan
+      - action: timer.start
+        target:
+          entity_id: timer.badkamer
+        data:
+          duration: "{{ (minuten | default(30) | int) * 60 }}"
+
+  badkamer_stop:
+    alias: Badkamer – stoppen
+    icon: mdi:stop-circle-outline
+    sequence:
+      - action: timer.cancel
+        target:
+          entity_id: timer.badkamer
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.badkamer_gepauzeerd
+      - action: script.badkamer_verwarming_uit
+
+automation:
+  - id: badkamer_ochtend
+    alias: Badkamer – ochtend voorverwarmen
+    mode: single
+    triggers:
+      - trigger: time
+        at: input_datetime.badkamer_ochtend_start
+    conditions:
+      - condition: state
+        entity_id: input_boolean.badkamer_ochtend
+        state: "on"
+      - condition: time
+        weekday: [mon, tue, wed, thu, fri]
+      - condition: numeric_state
+        entity_id: zone.home
+        above: 0
+    actions:
+      - action: script.badkamer_boost
+        data:
+          minuten: "{{ states('input_number.badkamer_ochtend_duur') | int(60) }}"
+
+  - id: badkamer_timer_klaar
+    alias: Badkamer – boost afgelopen
+    mode: single
+    triggers:
+      - trigger: event
+        event_type: timer.finished
+        event_data:
+          entity_id: timer.badkamer
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.badkamer_gepauzeerd
+      - action: script.badkamer_verwarming_uit
+
+  # Veiligheid: ook als hij met de hand of via de app is aangezet
+  - id: badkamer_max_looptijd
+    alias: Badkamer – maximale looptijd bereikt
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.badkamer_verwarming_aan
+        to: "on"
+    actions:
+      - wait_for_trigger:
+          - trigger: state
+            entity_id: binary_sensor.badkamer_verwarming_aan
+            to: "off"
+        timeout: "{{ states('input_number.badkamer_max_looptijd') | int(120) * 60 }}"
+        continue_on_timeout: true
+      - condition: template
+        value_template: "{{ wait.trigger is none }}"
+      - action: script.badkamer_stop
+      - action: notify.mobile_app_gsm
+        data:
+          title: "🛁 Badkamerverwarming uitgezet"
+          message: >
+            Stond {{ states('input_number.badkamer_max_looptijd') | int(120) }} minuten aan
+            en is automatisch uitgeschakeld.
+
+  # Capaciteitstarief: pauzeren tijdens een dreigende kwartierpiek
+  - id: badkamer_piek_pauze
+    alias: Badkamer – pauze bij kwartierpiek
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.kwartierpiek_dreigt
+        to: "on"
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.badkamer_verwarming_aan
+        state: "on"
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.badkamer_gepauzeerd
+      - action: script.badkamer_verwarming_uit
+
+  - id: badkamer_piek_hervat
+    alias: Badkamer – hervatten na kwartierpiek
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.kwartierpiek_dreigt
+        to: "off"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.badkamer_gepauzeerd
+        state: "on"
+      - condition: state
+        entity_id: timer.badkamer
+        state: active
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.badkamer_gepauzeerd
+      - action: script.badkamer_verwarming_aan
+
+  - id: badkamer_iedereen_weg
+    alias: Badkamer – uit als iedereen weg is
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: zone.home
+        below: 1
+        for:
+          minutes: 10
+    conditions:
+      - condition: state
+        entity_id: binary_sensor.badkamer_verwarming_aan
+        state: "on"
+    actions:
+      - action: script.badkamer_stop

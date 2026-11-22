@@ -158,6 +158,37 @@ views:
 
       - type: grid
         cards:
+          - type: thermostat
+            entity: climate.badkamer
+            name: Badkamer
+          - type: tile
+            entity: timer.badkamer
+            name: Boost
+          - type: button
+            name: 30 min
+            icon: mdi:radiator
+            tap_action:
+              action: perform-action
+              perform_action: script.badkamer_boost
+              data:
+                minuten: 30
+          - type: button
+            name: 60 min
+            icon: mdi:radiator
+            tap_action:
+              action: perform-action
+              perform_action: script.badkamer_boost
+              data:
+                minuten: 60
+          - type: button
+            name: Stop
+            icon: mdi:radiator-off
+            tap_action:
+              action: perform-action
+              perform_action: script.badkamer_stop
+
+      - type: grid
+        cards:
           - type: markdown
             title: Nieuws
             grid_options:

@@ -32,6 +32,7 @@ sensor.pv_verwachting_morgen:         # sensor.energy_production_tomorrow
 # --- Verwarming ---------------------------------------------------------------
 climate.vaillant_zone:                # climate.<systeem>_zone_1 (myVAILLANT)
 climate.pelletkachel:                 # climate.<naam_kachel> (Austroflamm/Fumis)
+climate.badkamer:                     # climate.<blumfeldt...> (Tuya / Smart Life)
 
 # --- Huishouden: Shelly + afval ------------------------------------------------
 sensor.wasmachine_vermogen:           # sensor.shelly_plug_..._power
