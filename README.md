@@ -36,7 +36,7 @@ De configuratie is gevalideerd met `hass --script check_config` (Home Assistant 
 - [ ] Onboarding: locatie Kortrijk, eenheden metrisch, tijdzone Europe/Brussels
 - [ ] Add-ons: **File editor** of **Studio Code Server**, **Terminal & SSH**, **Mosquitto broker**
 - [ ] Automatische back-ups instellen (Instellingen > Systeem > Back-ups), met een externe locatie (NAS)
-- [ ] **HACS** installeren (hacs.xyz)
+- [ ] Vanaf HA 2026.11 is HACS ingebouwd als **Marketplace** (*Instellingen > Marketplace*): niets te installeren
 
 ## 2. Integraties (in deze volgorde)
 
@@ -46,27 +46,27 @@ De configuratie is gevalideerd met `hass --script check_config` (Home Assistant 
 | Energie | **HomeWizard** | officieel | lokale API aanzetten in de HomeWizard-app |
 | Energie | **Shelly** | officieel | wordt automatisch ontdekt |
 | Toestellen | **Tuya** (Smart Life) | officieel | koppelen met de QR-code in de Smart Life-app (Ik > instellingen > account); o.a. Blumfeldt |
-| Toestellen | **Tuya Local** (optioneel) | HACS | zelfde toestellen lokaal, zonder Tuya-cloud; local key nodig |
-| Energie | **SolarEdge Modbus Multi** | HACS | eerst Modbus TCP aanzetten via SetApp (poort 1502) |
-| Energie | **Marstek Venus Modbus** of **Marstek Local API** | HACS | Modbus is volgens gebruikers stabieler |
-| Prijzen | **ENTSO-E** | HACS | gratis API-token aanvragen bij ENTSO-E Transparency |
+| Toestellen | **Tuya Local** (optioneel) | Marketplace | zelfde toestellen lokaal, zonder Tuya-cloud; local key nodig |
+| Energie | **SolarEdge Modbus Multi** | Marketplace | eerst Modbus TCP aanzetten via SetApp (poort 1502) |
+| Energie | **Marstek Venus Modbus** of **Marstek Local API** | Marketplace | Modbus is volgens gebruikers stabieler |
+| Prijzen | **ENTSO-E** | Marketplace | gratis API-token aanvragen bij ENTSO-E Transparency |
 | PV-verwachting | **Forecast.Solar** | officieel | oriëntatie, helling en kWp van je panelen; Solcast (HACS) is nauwkeuriger |
 | Nieuws (optioneel) | **Ollama** of **Google Gemini** | officieel | alleen voor een AI-samenvatting; zonder worden de koppen voorgelezen |
 | Nieuws | **Piper** + **Wyoming** | add-on / officieel | lokale TTS, Vlaamse stem `nl_BE-nathalie-medium` |
 | Onderhoud | **System Monitor** | officieel | sensoren CPU-temperatuur en schijfgebruik aanzetten |
-| Onderhoud | **Watchman** | HACS | best als laatste installeren, na het koppelen van de entiteiten |
-| Verwarming | **myVAILLANT** | HACS | cloud, login van de myVAILLANT-app |
+| Onderhoud | **Watchman** | Marketplace | best als laatste installeren, na het koppelen van de entiteiten |
+| Verwarming | **myVAILLANT** | Marketplace | cloud, login van de myVAILLANT-app |
 | Verwarming | **Austroflamm** (Fumis) | officieel | vereist Fumis WiRCU-wifimodule |
 | Weer | **Buienradar** | officieel | levert ook `camera.buienradar` |
-| Weer | **IRM KMI** | HACS | Belgische voorspelling, waarschuwingen, radar |
+| Weer | **IRM KMI** | Marketplace | Belgische voorspelling, waarschuwingen, radar |
 | Mobiliteit | **NMBS** | officieel | traject instellen, bv. Kortrijk -> Gent-Sint-Pieters |
 | Gezin | **Remote Calendar** | officieel | iCal-link uit Smartschool (Schoolkalender > Exporteren) |
-| Promoties | **Lidl Weekly Offers** | HACS | Lidl Plus-login, trefwoordfilters (koffie, luiers, ...) |
+| Promoties | **Lidl Weekly Offers** | Marketplace | Lidl Plus-login, trefwoordfilters (koffie, luiers, ...) |
 | Promoties | Colruyt | ingebouwd (RESTful) | geen installatie; winkel-id en product-id's instellen, zie `promoties.yaml` |
-| Afval | **Recycle!** of iCal | HACS / officieel | moet een `calendar`-entiteit opleveren |
-| Beurs | **Yahoo Finance** | HACS | tickers bv. `^BFX`, `IWDA.AS` |
+| Afval | **Recycle!** of iCal | Marketplace / officieel | moet een `calendar`-entiteit opleveren |
+| Beurs | **Yahoo Finance** | Marketplace | tickers bv. `^BFX`, `IWDA.AS` |
 
-HACS-frontendkaarten: **power-flow-card-plus**, **clock-weather-card**, **mini-graph-card**, **kiosk-mode**.
+Dashboardkaarten (Marketplace): **power-flow-card-plus**, **clock-weather-card**, **mini-graph-card**, **kiosk-mode**.
 
 ## 3. Deze config plaatsen
 
