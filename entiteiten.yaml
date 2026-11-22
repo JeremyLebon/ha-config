@@ -47,8 +47,8 @@ sensor.nmbs_trein:                    # sensor.kortrijk_gent_sint_pieters
 # --- Info / weer ----------------------------------------------------------------
 weather.thuis:                        # weather.forecast_home of weather.<kmi>
 camera.buienradar:                    # camera.buienradar
-sensor.beurs_bel20:                   # sensor.yahoofinance_bfx
-sensor.beurs_msci_world:              # sensor.yahoofinance_iwda_as
+sensor.beurs_bel20: sensor.yahoofinance_bfx   # sensor.yahoofinance_bfx
+sensor.beurs_msci_world: sensor.yahoofinance_iwda_as   # sensor.yahoofinance_iwda_as
 
 # --- Nieuws: AI-taak + TTS + speaker ----------------------------------------------
 ai_task.samenvatter:                  # optioneel (Ollama/Gemini); leeg laten = koppen voorlezen zonder AI

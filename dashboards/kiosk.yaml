@@ -237,7 +237,7 @@ views:
           - type: custom:mini-graph-card
             name: BEL20
             entities:
-              - sensor.beurs_bel20
+              - sensor.yahoofinance_bfx
             hours_to_show: 168
             points_per_hour: 0.5
             grid_options:
@@ -245,7 +245,7 @@ views:
           - type: custom:mini-graph-card
             name: MSCI World
             entities:
-              - sensor.beurs_msci_world
+              - sensor.yahoofinance_iwda_as
             hours_to_show: 168
             points_per_hour: 0.5
             grid_options:

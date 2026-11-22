@@ -1,0 +1,43 @@
+# =============================================================================
+# BEURS – Yahoo Finance (Marketplace: "Yahoo Finance" van iprak)
+# =============================================================================
+# ACTIVEREN: eerst de integratie installeren via de Marketplace en herstarten,
+# daarna dit bestand hernoemen naar beurs.yaml (zonder .uit) en opnieuw herstarten.
+# (Zonder geïnstalleerde integratie geeft de sleutel 'yahoofinance:' een configuratiefout.)
+#
+# Per symbool maakt de integratie sensor.yahoofinance_<symbool>, bv.
+#   ^BFX      -> sensor.yahoofinance_bfx        (BEL20)
+#   IWDA.AS   -> sensor.yahoofinance_iwda_as    (iShares MSCI World, Euronext Amsterdam)
+# Attributen o.a. regularMarketChangePercent (dagverandering in %) en currencySymbol.
+# Symbolen opzoeken: finance.yahoo.com (Brussel = .BR, Amsterdam = .AS, Parijs = .PA).
+
+yahoofinance:
+  scan_interval: 900 # 15 minuten
+  show_currency_symbol_as_unit: true
+  symbols:
+    - ^BFX # BEL20
+    - IWDA.AS # MSCI World ETF
+    - ^STOXX50E # Euro Stoxx 50
+    - EURUSD=X # euro/dollar
+
+automation:
+  - id: beurs_grote_beweging
+    alias: Beurs – grote dagbeweging
+    mode: queued
+    triggers:
+      - trigger: template
+        value_template: >
+          {{ state_attr('sensor.yahoofinance_bfx', 'regularMarketChangePercent') | float(0) | abs >= 3 }}
+        id: bel20
+      - trigger: template
+        value_template: >
+          {{ state_attr('sensor.yahoofinance_iwda_as', 'regularMarketChangePercent') | float(0) | abs >= 3 }}
+        id: msci
+    actions:
+      - variables:
+          s: "{{ 'sensor.yahoofinance_bfx' if trigger.id == 'bel20' else 'sensor.yahoofinance_iwda_as' }}"
+          pct: "{{ state_attr(s, 'regularMarketChangePercent') | float(0) | round(1) }}"
+      - action: notify.mobile_app_gsm
+        data:
+          title: "📈 {{ 'BEL20' if trigger.id == 'bel20' else 'MSCI World' }} {{ '+' if pct > 0 else '' }}{{ pct }} %"
+          message: "Koers nu {{ states(s) }}."

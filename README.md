@@ -18,6 +18,7 @@ packages/
   gezin.yaml              Smartschool, NMBS-vertraging
   promoties.yaml          Lidl (trefwoorden) + Colruyt (watchlist via REST), melding bij nieuwe promo
   nieuws.yaml             VRT NWS, Nieuwsblad, Focus-WTV -> koppen (optioneel AI) -> voorlezen met Piper
+  beurs.yaml.uit          Yahoo Finance (BEL20, MSCI World, ...) – hernoemen naar .yaml na installatie
   onderhoud.yaml          Watchman, temperatuur en schijf van de Pi
 dashboards/kiosk.yaml     3 views: Energie / Vandaag / Info
 tools/koppel_entiteiten.py
