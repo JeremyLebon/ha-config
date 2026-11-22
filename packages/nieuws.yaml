@@ -1,9 +1,11 @@
 # =============================================================================
-# NIEUWS – VRT NWS-feed -> samenvatting door een AI-taak (Claude) -> voorlezen via TTS
+# NIEUWS – VRT NWS-feed -> koppen (of optioneel AI-samenvatting) -> voorlezen via TTS
 # =============================================================================
+# Standaard: de belangrijkste koppen worden letterlijk voorgelezen, zonder AI en zonder kosten.
+# Optioneel: bestaat de entiteit ai_task.samenvatter, dan maakt die er een bulletin van
+#   (bv. Ollama lokaal op een pc/NAS, of Google Gemini). Zonder die entiteit: gewoon de koppen.
+#
 # Benodigd:
-#   - Anthropic-integratie (officieel) met een AI Task-entiteit  -> ai_task.samenvatter
-#     (of een andere AI Task-provider: OpenAI, Google, Ollama lokaal, ...)
 #   - TTS: Piper (add-on + Wyoming, lokaal) met een Vlaamse stem (nl_BE-nathalie of nl_BE-rdh),
 #     of Home Assistant Cloud (nl-BE)                              -> tts.piper
 #   - Een speaker als media_player die TTS kan afspelen (Cast/Sonos/ESPHome-satelliet, ...)
@@ -67,8 +69,15 @@ script:
         default: false
         selector:
           boolean:
+      koppen_voorlezen:
+        name: Aantal koppen (zonder AI)
+        default: 5
+        selector:
+          number:
+            min: 1
+            max: 10
       aantal:
-        name: Aantal berichten
+        name: Aantal berichten voor AI
         default: 15
         selector:
           number:
@@ -90,23 +99,43 @@ script:
             {{ ns.l | join('\n') }}
       - condition: template
         value_template: "{{ koppen | length > 0 }}"
-      - action: ai_task.generate_data
-        data:
-          task_name: nieuwssamenvatting
-          entity_id: ai_task.samenvatter
-          instructions: >
-            Je bent de nieuwslezer van een Vlaams gezin. Vat de belangrijkste berichten
-            hieronder samen als een kort radiobulletin in vlot, gesproken Nederlands:
-            maximaal zes zinnen, eerst het belangrijkste binnenlandse nieuws, dan buitenland,
-            sluit af met één luchtig bericht als dat er is. Geen opsommingstekens, geen
-            markdown, geen koppen, geen bronvermelding, schrijf getallen zoals je ze uitspreekt.
+      - if:
+          # AI-samenvatting alleen als er een AI-taak-entiteit gekoppeld is
+          - condition: template
+            value_template: >
+              {{ states.ai_task | selectattr('entity_id', 'eq', 'ai_task.samenvatter') | list | count > 0 }}
+        then:
+          - action: ai_task.generate_data
+            data:
+              task_name: nieuwssamenvatting
+              entity_id: ai_task.samenvatter
+              instructions: >
+                Je bent de nieuwslezer van een Vlaams gezin. Vat de belangrijkste berichten
+                hieronder samen als een kort radiobulletin in vlot, gesproken Nederlands:
+                maximaal zes zinnen, eerst het belangrijkste binnenlandse nieuws, dan buitenland,
+                sluit af met één luchtig bericht als dat er is. Geen opsommingstekens, geen
+                markdown, geen koppen, geen bronvermelding, schrijf getallen zoals je ze uitspreakt.
 
-            Berichten van VRT NWS:
-            {{ koppen }}
-        response_variable: resultaat
+                Berichten van VRT NWS:
+                {{ koppen }}
+            response_variable: resultaat
+          - variables:
+              bulletin: "{{ resultaat.data }}"
+        else:
+          # Zonder AI: de eerste koppen als gesproken tekst
+          - variables:
+              bulletin: >
+                {% set entries = state_attr('sensor.nieuws_vrt', 'entry') or [] %}
+                {% if entries is mapping %}{% set entries = [entries] %}{% endif %}
+                {% set ns = namespace(l=[]) %}
+                {% for e in entries[:(koppen_voorlezen | default(5) | int)] %}
+                  {% set t = e.get('title', '') %}
+                  {% set ns.l = ns.l + [(t['#text'] if t is mapping else t) | trim] %}
+                {% endfor %}
+                Het nieuws van VRT NWS. {{ ns.l | join('. ') }}.
       - event: nieuws_samenvatting
         event_data:
-          tekst: "{{ resultaat.data }}"
+          tekst: "{{ bulletin }}"
       - if:
           - condition: template
             value_template: "{{ voorlezen | default(false) }}"
@@ -116,7 +145,7 @@ script:
               entity_id: tts.piper
             data:
               media_player_entity_id: media_player.speaker
-              message: "{{ resultaat.data }}"
+              message: "{{ bulletin }}"
               cache: false
 
 automation:

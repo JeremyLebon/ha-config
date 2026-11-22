@@ -16,7 +16,7 @@ packages/
   huishouden.yaml         wasmachine/droogkast klaar, afvalophaling
   gezin.yaml              Smartschool, NMBS-vertraging
   promoties.yaml          Lidl (trefwoorden) + Colruyt (watchlist via REST), melding bij nieuwe promo
-  nieuws.yaml             VRT NWS -> samenvatting door Claude (AI-taak) -> voorlezen met Piper
+  nieuws.yaml             VRT NWS -> koppen (optioneel AI-samenvatting) -> voorlezen met Piper
   onderhoud.yaml          Watchman, temperatuur en schijf van de Pi
 dashboards/kiosk.yaml     3 views: Energie / Vandaag / Info
 tools/koppel_entiteiten.py
@@ -48,7 +48,7 @@ De configuratie is gevalideerd met `hass --script check_config` (Home Assistant 
 | Energie | **Marstek Venus Modbus** of **Marstek Local API** | HACS | Modbus is volgens gebruikers stabieler |
 | Prijzen | **ENTSO-E** | HACS | gratis API-token aanvragen bij ENTSO-E Transparency |
 | PV-verwachting | **Forecast.Solar** | officieel | oriëntatie, helling en kWp van je panelen; Solcast (HACS) is nauwkeuriger |
-| Nieuws | **Anthropic** | officieel | API-sleutel van console.anthropic.com; maakt een AI Task-entiteit |
+| Nieuws (optioneel) | **Ollama** of **Google Gemini** | officieel | alleen voor een AI-samenvatting; zonder worden de koppen voorgelezen |
 | Nieuws | **Piper** + **Wyoming** | add-on / officieel | lokale TTS, Vlaamse stem `nl_BE-nathalie-medium` |
 | Onderhoud | **System Monitor** | officieel | sensoren CPU-temperatuur en schijfgebruik aanzetten |
 | Onderhoud | **Watchman** | HACS | best als laatste installeren, na het koppelen van de entiteiten |
