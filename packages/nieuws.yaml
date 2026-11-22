@@ -1,18 +1,22 @@
 # =============================================================================
-# NIEUWS – VRT NWS-feed -> koppen (of optioneel AI-samenvatting) -> voorlezen via TTS
+# NIEUWS – VRT NWS, Het Nieuwsblad, Focus-WTV -> koppen (of optioneel AI) -> voorlezen via TTS
 # =============================================================================
-# Standaard: de belangrijkste koppen worden letterlijk voorgelezen, zonder AI en zonder kosten.
+# Standaard: per bron de belangrijkste koppen letterlijk voorlezen, zonder AI en zonder kosten.
 # Optioneel: bestaat de entiteit ai_task.samenvatter, dan maakt die er een bulletin van
 #   (bv. Ollama lokaal op een pc/NAS, of Google Gemini). Zonder die entiteit: gewoon de koppen.
+#
+# Bronnen (RESTful zet XML automatisch om naar JSON):
+#   VRT NWS        Atom   feed/entry          -> sensor.nieuws_vrt        (attribuut 'entry')
+#   Het Nieuwsblad RSS    rss/channel/item    -> sensor.nieuws_nieuwsblad (attribuut 'item')
+#   Focus-WTV      heeft geen eigen feed; via een Google News-zoekopdracht op focus-wtv.be
+#                  RSS    rss/channel/item    -> sensor.nieuws_focus_wtv  (attribuut 'item')
+#   Bron toevoegen: rest-blok kopiëren + toevoegen aan de lijst 'bronnen' in het script.
 #
 # Benodigd:
 #   - TTS: Piper (add-on + Wyoming, lokaal) met een Vlaamse stem (nl_BE-nathalie of nl_BE-rdh),
 #     of Home Assistant Cloud (nl-BE)                              -> tts.piper
 #   - Een speaker als media_player die TTS kan afspelen (Cast/Sonos/ESPHome-satelliet, ...)
 #                                                                  -> media_player.speaker
-#
-# De feed van VRT NWS is Atom (feed/entry). De RESTful-integratie zet XML automatisch om
-# naar JSON; de berichten komen in het attribuut 'entry' van sensor.nieuws_vrt.
 
 input_boolean:
   nieuws_ochtend:
@@ -28,8 +32,10 @@ input_datetime:
 
 recorder:
   exclude:
-    entities:
-      - sensor.nieuws_vrt # groot attribuut, hoeft niet in de database
+    entities: # grote attributen, horen niet in de database
+      - sensor.nieuws_vrt
+      - sensor.nieuws_nieuwsblad
+      - sensor.nieuws_focus_wtv
 
 rest:
   - resource: https://www.vrt.be/vrtnws/nl.rss.articles.xml
@@ -39,10 +45,36 @@ rest:
       - name: Nieuws VRT
         unique_id: nieuws_vrt
         icon: mdi:newspaper
-        value_template: "{{ value_json.feed.entry | default([]) | count }}"
+        value_template: "{% set i = value_json.feed.entry | default([]) %}{{ 1 if i is mapping else i | count }}"
         json_attributes_path: "$.feed"
         json_attributes:
           - entry
+
+  - resource: https://www.nieuwsblad.be/rss
+    scan_interval: 1800
+    timeout: 20
+    headers:
+      User-Agent: Mozilla/5.0 (X11; Linux aarch64) HomeAssistant
+    sensor:
+      - name: Nieuws Nieuwsblad
+        unique_id: nieuws_nieuwsblad
+        icon: mdi:newspaper
+        value_template: "{% set i = value_json.rss.channel.item | default([]) %}{{ 1 if i is mapping else i | count }}"
+        json_attributes_path: "$.rss.channel"
+        json_attributes:
+          - item
+
+  - resource: https://news.google.com/rss/search?q=site:focus-wtv.be+when:2d&hl=nl&gl=BE&ceid=BE:nl
+    scan_interval: 1800
+    timeout: 20
+    sensor:
+      - name: Nieuws Focus-WTV
+        unique_id: nieuws_focus_wtv
+        icon: mdi:television-classic
+        value_template: "{% set i = value_json.rss.channel.item | default([]) %}{{ 1 if i is mapping else i | count }}"
+        json_attributes_path: "$.rss.channel"
+        json_attributes:
+          - item
 
 template:
   # Laatste samenvatting bewaren voor het dashboard
@@ -69,36 +101,47 @@ script:
         default: false
         selector:
           boolean:
-      koppen_voorlezen:
-        name: Aantal koppen (zonder AI)
-        default: 5
+      koppen_per_bron:
+        name: Koppen per bron
+        default: 3
         selector:
           number:
             min: 1
             max: 10
-      aantal:
-        name: Aantal berichten voor AI
-        default: 15
-        selector:
-          number:
-            min: 5
-            max: 30
     sequence:
       - variables:
-          koppen: >
-            {% set ns = namespace(l=[]) %}
-            {% set entries = state_attr('sensor.nieuws_vrt', 'entry') or [] %}
-            {% if entries is mapping %}{% set entries = [entries] %}{% endif %}
-            {% for e in entries[:(aantal | default(15) | int)] %}
-              {% set t = e.get('title', '') %}
-              {% set t = t['#text'] if t is mapping else t %}
-              {% set s = e.get('summary', '') %}
-              {% set s = s['#text'] if s is mapping else (s or '') %}
-              {% set ns.l = ns.l + ['- ' ~ t ~ ': ' ~ (s | striptags | truncate(300))] %}
+          bronnen:
+            - naam: VRT NWS
+              sensor: sensor.nieuws_vrt
+            - naam: Het Nieuwsblad
+              sensor: sensor.nieuws_nieuwsblad
+            - naam: Focus-WTV
+              sensor: sensor.nieuws_focus_wtv
+              google: true # Google News zet " - Focus-WTV" achter elke titel
+          n: "{{ koppen_per_bron | default(3) | int }}"
+          # Per bron: lijst van {titel, tekst}, ongeacht Atom of RSS
+          berichten: >
+            {% set ns = namespace(uit=[]) %}
+            {% for b in bronnen %}
+              {% set items = state_attr(b.sensor, 'entry') or state_attr(b.sensor, 'item') or [] %}
+              {% if items is mapping %}{% set items = [items] %}{% endif %}
+              {% set nb = namespace(l=[]) %}
+              {% for e in items[:n] %}
+                {% set t = e.get('title', '') %}
+                {% set t = (t['#text'] if t is mapping else t) | string %}
+                {% if b.get('google') %}{% set t = t | regex_replace(' - (?!.* - ).*$', '') %}{% endif %}
+                {% set t = t | trim %}
+                {% set s = e.get('summary', e.get('description', '')) %}
+                {% set s = (s['#text'] if s is mapping else (s or '')) | string %}
+                {% set nb.l = nb.l + [{'titel': t, 'tekst': s | striptags | truncate(250)}] %}
+              {% endfor %}
+              {% if nb.l | count > 0 %}
+                {% set ns.uit = ns.uit + [{'naam': b.naam, 'items': nb.l}] %}
+              {% endif %}
             {% endfor %}
-            {{ ns.l | join('\n') }}
+            {{ ns.uit }}
       - condition: template
-        value_template: "{{ koppen | length > 0 }}"
+        value_template: "{{ berichten | count > 0 }}"
       - if:
           # AI-samenvatting alleen als er een AI-taak-entiteit gekoppeld is
           - condition: template
@@ -109,30 +152,31 @@ script:
             data:
               task_name: nieuwssamenvatting
               entity_id: ai_task.samenvatter
-              instructions: >
-                Je bent de nieuwslezer van een Vlaams gezin. Vat de belangrijkste berichten
-                hieronder samen als een kort radiobulletin in vlot, gesproken Nederlands:
-                maximaal zes zinnen, eerst het belangrijkste binnenlandse nieuws, dan buitenland,
-                sluit af met één luchtig bericht als dat er is. Geen opsommingstekens, geen
-                markdown, geen koppen, geen bronvermelding, schrijf getallen zoals je ze uitspreakt.
+              instructions: |
+                Je bent de nieuwslezer van een Vlaams gezin in West-Vlaanderen. Maak van de
+                berichten hieronder een kort radiobulletin in vlot, gesproken Nederlands:
+                maximaal acht zinnen. Eerst het belangrijkste nationale nieuws, dan buitenland,
+                dan regionaal nieuws uit West-Vlaanderen (Focus-WTV). Laat dubbele berichten
+                van verschillende bronnen samenvallen. Geen opsommingstekens, geen markdown,
+                geen koppen, schrijf getallen zoals je ze uitspreekt.
 
-                Berichten van VRT NWS:
-                {{ koppen }}
+                {% for b in berichten %}
+                {{ b.naam }}:
+                {% for i in b['items'] %}- {{ i.titel }}: {{ i.tekst }}
+                {% endfor %}
+                {% endfor %}
             response_variable: resultaat
           - variables:
               bulletin: "{{ resultaat.data }}"
         else:
-          # Zonder AI: de eerste koppen als gesproken tekst
+          # Zonder AI: per bron de koppen als gesproken tekst
           - variables:
               bulletin: >
-                {% set entries = state_attr('sensor.nieuws_vrt', 'entry') or [] %}
-                {% if entries is mapping %}{% set entries = [entries] %}{% endif %}
                 {% set ns = namespace(l=[]) %}
-                {% for e in entries[:(koppen_voorlezen | default(5) | int)] %}
-                  {% set t = e.get('title', '') %}
-                  {% set ns.l = ns.l + [(t['#text'] if t is mapping else t) | trim] %}
+                {% for b in berichten %}
+                  {% set ns.l = ns.l + [b.naam ~ '. ' ~ (b['items'] | map(attribute='titel') | join('. ')) ~ '.'] %}
                 {% endfor %}
-                Het nieuws van VRT NWS. {{ ns.l | join('. ') }}.
+                Het nieuws. {{ ns.l | join(' ') }}
       - event: nieuws_samenvatting
         event_data:
           tekst: "{{ bulletin }}"

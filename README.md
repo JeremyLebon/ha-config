@@ -16,7 +16,7 @@ packages/
   huishouden.yaml         wasmachine/droogkast klaar, afvalophaling
   gezin.yaml              Smartschool, NMBS-vertraging
   promoties.yaml          Lidl (trefwoorden) + Colruyt (watchlist via REST), melding bij nieuwe promo
-  nieuws.yaml             VRT NWS -> koppen (optioneel AI-samenvatting) -> voorlezen met Piper
+  nieuws.yaml             VRT NWS, Nieuwsblad, Focus-WTV -> koppen (optioneel AI) -> voorlezen met Piper
   onderhoud.yaml          Watchman, temperatuur en schijf van de Pi
 dashboards/kiosk.yaml     3 views: Energie / Vandaag / Info
 tools/koppel_entiteiten.py
