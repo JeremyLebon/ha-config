@@ -41,6 +41,9 @@ rest:
   - resource: https://www.vrt.be/vrtnws/nl.rss.articles.xml
     scan_interval: 1800
     timeout: 20
+    headers:
+      User-Agent: Mozilla/5.0 (X11; Linux aarch64) HomeAssistant
+      Accept: application/atom+xml, application/xml, text/xml
     sensor:
       - name: Nieuws VRT
         unique_id: nieuws_vrt

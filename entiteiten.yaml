@@ -7,19 +7,19 @@
 notify.mobile_app_gsm:                # notify.mobile_app_<naam_van_je_gsm>
 
 # --- Energie: HomeWizard P1 --------------------------------------------------
-sensor.p1_vermogen:                   # sensor.p1_meter_power
-sensor.p1_kwartiergemiddelde:         # sensor.p1_meter_average_demand
-sensor.p1_maandpiek:                  # sensor.p1_meter_peak_demand_current_month
+sensor.p1_vermogen: sensor.woonkamer_p1_meter_realtime_vermogen   # sensor.p1_meter_power
+sensor.p1_kwartiergemiddelde: sensor.kwartiergemiddelde_berekend   # sensor.p1_meter_average_demand
+sensor.p1_maandpiek: sensor.maandpiek_berekend   # sensor.p1_meter_peak_demand_current_month
 
 # --- Energie: SolarEdge (solaredge-modbus-multi) -----------------------------
 sensor.pv_vermogen:                   # sensor.solaredge_i1_ac_power
 
 # --- Energie: Marstek ---------------------------------------------------------
-sensor.batterij_vermogen:             # afhankelijk van integratie (positief = ontladen!)
-sensor.batterij_soc:                  # sensor.marstek_..._battery_soc
-select.batterij_forceer_modus:        # select.marstek_..._force_mode
-number.batterij_ontlaadvermogen:      # number.marstek_..._discharge_power
-number.batterij_laadvermogen:         # number.marstek_..._charge_power
+sensor.batterij_vermogen: sensor.marstek_venus_1_ac_power   # afhankelijk van integratie (positief = ontladen!)
+sensor.batterij_soc: sensor.marstek_venus_1_battery_soc   # sensor.marstek_..._battery_soc
+select.batterij_forceer_modus: select.marstek_venus_1_force_mode   # select.marstek_..._force_mode
+number.batterij_ontlaadvermogen: number.marstek_venus_1_set_discharge_power   # number.marstek_..._discharge_power
+number.batterij_laadvermogen: number.marstek_venus_1_set_charge_power   # number.marstek_..._charge_power
 
 # --- Prijzen: ENTSO-E ---------------------------------------------------------
 sensor.stroomprijs_nu:                # sensor.current_electricity_market_price
@@ -30,7 +30,8 @@ sensor.pv_verwachting_vandaag_rest:   # sensor.energy_production_today_remaining
 sensor.pv_verwachting_morgen:         # sensor.energy_production_tomorrow
 
 # --- Verwarming ---------------------------------------------------------------
-climate.vaillant_zone:                # climate.<systeem>_zone_1 (myVAILLANT)
+climate.vaillant_zone: climate.my_home_zone_thuis_circuit_0_climate   # climate.<systeem>_zone_1 (myVAILLANT)
+sensor.vaillant_waterdruk: sensor.lebonjeremy_hotmail_com_my_home_system_water_pressure
 climate.pelletkachel:                 # climate.<naam_kachel> (Austroflamm/Fumis)
 climate.badkamer:                     # climate.<blumfeldt...> (Tuya / Smart Life)
 

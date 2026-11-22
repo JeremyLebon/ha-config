@@ -1,0 +1,76 @@
+# =============================================================================
+# CAPACITEITSTARIEF – kwartiergemiddelde en maandpiek zelf berekenen uit het P1-vermogen
+# =============================================================================
+# Nodig omdat de HomeWizard Realtime-integratie geen "average demand" en
+# "peak demand current month" levert. (Voeg je later de officiële HomeWizard-integratie toe,
+# dan kun je in entiteiten.yaml naar die sensoren wijzen; deze berekening mag blijven staan.)
+#
+# Fluvius rekent met de AFNAME per kwartier (injectie telt niet mee):
+#   netafname vermogen  = max(P1-vermogen, 0)                      [W]
+#   netafname energie   = integraal daarvan                        [kWh]
+#   netafname kwartier  = utility_meter, reset elk kwartier        [kWh]
+#   kwartiergemiddelde  = energie dit kwartier / verstreken tijd   [W]
+#   maandpiek           = hoogste afgesloten kwartier deze maand   [W]
+
+template:
+  - sensor:
+      - name: Netafname vermogen
+        unique_id: netafname_vermogen
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: "{{ [states('sensor.woonkamer_p1_meter_realtime_vermogen') | float(0), 0] | max | round(0) }}"
+        availability: "{{ has_value('sensor.woonkamer_p1_meter_realtime_vermogen') }}"
+
+      - name: Kwartiergemiddelde berekend
+        unique_id: kwartiergemiddelde_berekend
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set e = states('sensor.netafname_kwartier') | float(0) %}
+          {% set t = (now().minute % 15) * 60 + now().second %}
+          {% if t < 30 %}
+            {{ states('sensor.netafname_vermogen') | float(0) | round(0) }}
+          {% else %}
+            {{ (e * 1000 * 3600 / t) | round(0) }}
+          {% endif %}
+        availability: "{{ has_value('sensor.netafname_kwartier') }}"
+
+  # Na elk kwartier: het afgesloten kwartier vergelijken met de maandpiek
+  - triggers:
+      - trigger: time_pattern
+        minutes: "/15"
+        seconds: 10
+    sensor:
+      - name: Maandpiek berekend
+        unique_id: maandpiek_berekend
+        unit_of_measurement: W
+        device_class: power
+        icon: mdi:chart-bell-curve
+        state: >
+          {% set kwartier_w = state_attr('sensor.netafname_kwartier', 'last_period') | float(0) * 4000 %}
+          {% set maand = (now() - timedelta(minutes=1)).strftime('%Y-%m') %}
+          {% set oud = this.state | float(0) if this.attributes.get('maand') == maand else 0 %}
+          {{ [oud, kwartier_w] | max | round(0) }}
+        attributes:
+          maand: "{{ (now() - timedelta(minutes=1)).strftime('%Y-%m') }}"
+          laatste_kwartier: "{{ (state_attr('sensor.netafname_kwartier', 'last_period') | float(0) * 4000) | round(0) }}"
+
+sensor:
+  - platform: integration
+    name: Netafname energie
+    unique_id: netafname_energie
+    source: sensor.netafname_vermogen
+    unit_prefix: k
+    unit_time: h
+    method: left
+    round: 4
+    max_sub_interval:
+      seconds: 30
+
+utility_meter:
+  netafname_kwartier:
+    unique_id: netafname_kwartier
+    source: sensor.netafname_energie
+    cycle: quarter-hourly

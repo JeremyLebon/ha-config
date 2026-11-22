@@ -23,12 +23,12 @@ views:
               columns: full
             entities:
               grid:
-                entity: sensor.p1_vermogen
+                entity: sensor.woonkamer_p1_meter_realtime_vermogen
               solar:
                 entity: sensor.pv_vermogen
               battery:
-                entity: sensor.batterij_vermogen
-                state_of_charge: sensor.batterij_soc
+                entity: sensor.marstek_venus_1_ac_power
+                state_of_charge: sensor.marstek_venus_1_battery_soc
               home:
                 entity: sensor.huisverbruik
             w_decimals: 0
@@ -51,7 +51,7 @@ views:
               yellow: 2000
               red: 2500
           - type: tile
-            entity: sensor.p1_maandpiek
+            entity: sensor.maandpiek_berekend
             name: Maandpiek
           - type: tile
             entity: sensor.effectieve_piekgrens
@@ -74,7 +74,7 @@ views:
             entity: binary_sensor.goedkoop_uur
             name: Goedkoop uur
           - type: tile
-            entity: sensor.batterij_soc
+            entity: sensor.marstek_venus_1_battery_soc
             name: Batterij
           - type: tile
             entity: input_boolean.laden_op_goedkope_uren
@@ -93,7 +93,7 @@ views:
             points_per_hour: 4
             line_width: 2
             entities:
-              - entity: sensor.p1_vermogen
+              - entity: sensor.woonkamer_p1_meter_realtime_vermogen
                 name: Net
               - entity: sensor.pv_vermogen
                 name: PV
@@ -139,7 +139,7 @@ views:
       - type: grid
         cards:
           - type: thermostat
-            entity: climate.vaillant_zone
+            entity: climate.my_home_zone_thuis_circuit_0_climate
             name: Vaillant
           - type: thermostat
             entity: climate.pelletkachel

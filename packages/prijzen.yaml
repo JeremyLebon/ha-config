@@ -127,7 +127,7 @@ automation:
             state: "on"
       - condition: template
         value_template: >
-          {{ states('sensor.batterij_soc') | float(100) <
+          {{ states('sensor.marstek_venus_1_battery_soc') | float(100) <
              states('input_number.batterij_max_soc_netladen') | float(90) }}
     actions:
       - action: input_boolean.turn_on
@@ -146,7 +146,7 @@ automation:
         entity_id: binary_sensor.kwartierpiek_dreigt
         to: "on"
       - trigger: numeric_state
-        entity_id: sensor.batterij_soc
+        entity_id: sensor.marstek_venus_1_battery_soc
         above: input_number.batterij_max_soc_netladen
       - trigger: state
         entity_id: input_boolean.laden_op_goedkope_uren

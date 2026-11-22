@@ -1,8 +1,9 @@
 # =============================================================================
 # VERWARMING – Vaillant (myVAILLANT, cloud, HACS) + Austroflamm pelletkachel (Fumis, officieel)
 # =============================================================================
-#   climate.vaillant_zone   myVAILLANT-zone van de leefruimte
+#   climate.my_home_zone_thuis_circuit_0_climate   myVAILLANT-zone van de leefruimte
 #   climate.pelletkachel    Austroflamm via Fumis (WiRCU-module)
+#   sensor.lebonjeremy_hotmail_com_my_home_system_water_pressure  myVAILLANT "System Water Pressure" (bar)
 #
 # 1. Kachel brandt -> setpoint Vaillant omlaag (geen dubbel stoken), daarna herstellen.
 #    Let op: myVAILLANT zet bij een temperatuurwijziging standaard een "quick veto"
@@ -112,15 +113,18 @@ automation:
       - condition: state
         entity_id: input_boolean.vaillant_verlaagd_door_kachel
         state: "off"
+      # Staat de Vaillant-zone zelf uit (zomer, vakantie), dan niets doen
+      - condition: template
+        value_template: "{{ states('climate.my_home_zone_thuis_circuit_0_climate') not in ['off', 'unavailable', 'unknown'] }}"
     actions:
       - action: input_number.set_value
         target:
           entity_id: input_number.vaillant_setpoint_bewaard
         data:
-          value: "{{ state_attr('climate.vaillant_zone', 'temperature') | float(20) }}"
+          value: "{{ state_attr('climate.my_home_zone_thuis_circuit_0_climate', 'temperature') | float(20) }}"
       - action: climate.set_temperature
         target:
-          entity_id: climate.vaillant_zone
+          entity_id: climate.my_home_zone_thuis_circuit_0_climate
         data:
           temperature: "{{ states('input_number.vaillant_setpoint_kachel') | float(17) }}"
       - action: input_boolean.turn_on
@@ -146,7 +150,7 @@ automation:
     actions:
       - action: climate.set_temperature
         target:
-          entity_id: climate.vaillant_zone
+          entity_id: climate.my_home_zone_thuis_circuit_0_climate
         data:
           temperature: "{{ states('input_number.vaillant_setpoint_bewaard') | float(20) }}"
       - action: input_boolean.turn_off
@@ -186,7 +190,7 @@ automation:
     mode: single
     triggers:
       - trigger: state
-        entity_id: climate.vaillant_zone
+        entity_id: climate.my_home_zone_thuis_circuit_0_climate
         to: unavailable
         for:
           minutes: 30
@@ -195,3 +199,20 @@ automation:
         data:
           title: "Vaillant onbereikbaar"
           message: "myVAILLANT geeft al 30 minuten geen data. Controleer sensoNET/internet."
+
+  - id: verwarming_vaillant_waterdruk
+    alias: Verwarming – waterdruk Vaillant te laag
+    mode: single
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.lebonjeremy_hotmail_com_my_home_system_water_pressure
+        below: 1.0
+        for:
+          minutes: 30
+    actions:
+      - action: notify.mobile_app_gsm
+        data:
+          title: "💧 Waterdruk verwarming laag"
+          message: >
+            De installatie staat op {{ states('sensor.lebonjeremy_hotmail_com_my_home_system_water_pressure') }} bar.
+            Bijvullen tot ongeveer 1,5 à 2 bar.
